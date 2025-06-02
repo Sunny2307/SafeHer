@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 
 const CompleteProfileScreen = () => {
   const [name, setName] = useState('');
+  const navigation = useNavigation();
 
   const handleContinue = () => {
     if (!name.trim()) {
@@ -10,8 +12,7 @@ const CompleteProfileScreen = () => {
       return;
     }
     alert('Profile Completed: Welcome, ' + name);
-    // Navigate to the next screen (e.g., HomeScreen) or save the name to storage
-    // navigation.navigate('HomeScreen');
+    navigation.navigate('HomeScreen'); // Navigate to HomeScreen
   };
 
   return (

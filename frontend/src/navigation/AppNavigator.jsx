@@ -8,6 +8,8 @@ import SignUpLoginScreen from '../../src/screens/auth/SignUpLoginScreen';
 import OTPScreen from '../../src/screens/auth/OTPScreen'; 
 import PinCreationScreen from '../../src/screens/auth/PinCreationScreen';
 import CompleteProfileScreen from '../screens/auth/CompleteProfileScreen';
+import HomeScreen from '../screens/HomeScreen';
+import PinLoginScreen from '../screens/auth/PinLoginScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -29,8 +31,18 @@ const AppNavigator = () => {
           
         />
         <Stack.Screen
+             name="PinLoginScreen"
+             component={PinLoginScreen}
+             options={{ headerShown: false }}
+           />
+        <Stack.Screen
           name="CompleteProfileScreen"
           component={CompleteProfileScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="HomeScreen"
+          component={HomeScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

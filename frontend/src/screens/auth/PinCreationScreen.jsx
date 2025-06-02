@@ -1,7 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialIcons'; // For the eye icon
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
+import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
+import * as Keychain from 'react-native-keychain';
 
 const PinCreationScreen = () => {
   const [pin, setPin] = useState(['', '', '', '']);
@@ -11,7 +13,6 @@ const PinCreationScreen = () => {
   const confirmPinInputRefs = useRef([]);
   const navigation = useNavigation();
 
-  // Handle PIN input change and auto-focus next input
   const handlePinChange = (text, index) => {
     const newPin = [...pin];
     newPin[index] = text;
@@ -21,7 +22,6 @@ const PinCreationScreen = () => {
     }
   };
 
-  // Handle Confirm PIN input change and auto-focus next input
   const handleConfirmPinChange = (text, index) => {
     const newConfirmPin = [...confirmPin];
     newConfirmPin[index] = text;
@@ -31,30 +31,80 @@ const PinCreationScreen = () => {
     }
   };
 
-  // Handle Show PIN toggle
   const toggleShowPin = () => {
     setShowPin(!showPin);
   };
 
-  // Handle Submit button press
-  const handleSubmit = () => {
+  const enableBiometricAuth = async (enteredPin) => {
+    const rnBiometrics = new ReactNativeBiometrics();
+    try {
+      const { available, biometryType } = await rnBiometrics.isSensorAvailable();
+      let biometricLabel = '';
+      if (available) {
+        if (biometryType === BiometryTypes.TouchID) {
+          biometricLabel = 'Touch ID';
+        } else if (biometryType === BiometryTypes.FaceID) {
+          biometricLabel = 'Face ID';
+        } else if (biometryType === BiometryTypes.Biometrics) {
+          biometricLabel = 'Biometrics';
+        }
+
+        Alert.alert(
+          `${biometricLabel} Authentication`,
+          `Would you like to enable ${biometricLabel} authentication for future logins?`,
+          [
+            {
+              text: 'Yes',
+              onPress: async () => {
+                await Keychain.setGenericPassword('userPin', enteredPin, {
+                  accessControl: Keychain.ACCESS_CONTROL.BIOMETRY_ANY,
+                  accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED,
+                });
+                Alert.alert('Success', `${biometricLabel} authentication enabled successfully!`);
+                navigation.navigate('PinLoginScreen'); // Navigate to PinLoginScreen
+              },
+            },
+            {
+              text: 'No',
+              onPress: () => {
+                Keychain.setGenericPassword('userPin', enteredPin);
+                navigation.navigate('PinLoginScreen'); // Navigate to PinLoginScreen
+              },
+              style: 'cancel',
+            },
+          ],
+        );
+      } else {
+        await Keychain.setGenericPassword('userPin', enteredPin);
+        Alert.alert('Biometrics Not Supported', 'This device does not support biometric authentication.');
+        navigation.navigate('PinLoginScreen'); // Navigate to PinLoginScreen
+      }
+    } catch (error) {
+      console.error('Error enabling biometrics:', error);
+      Alert.alert('Error', 'Failed to enable biometric authentication. Proceeding without it.');
+      await Keychain.setGenericPassword('userPin', enteredPin);
+      navigation.navigate('PinLoginScreen'); // Navigate to PinLoginScreen
+    }
+  };
+
+  const handleSubmit = async () => {
     const enteredPin = pin.join('');
     const enteredConfirmPin = confirmPin.join('');
     if (enteredPin.length !== 4 || enteredConfirmPin.length !== 4) {
-      alert('Please enter a 4-digit PIN in both fields');
+      Alert.alert('Error', 'Please enter a 4-digit PIN in both fields');
       return;
     }
     if (enteredPin !== enteredConfirmPin) {
-      alert('PINs do not match. Please try again.');
+      Alert.alert('Error', 'PINs do not match. Please try again.');
       return;
     }
-    alert('PIN Created Successfully: ' + enteredPin);
-    navigation.navigate('CompleteProfileScreen'); // Navigate to CompleteProfileScreen
+
+    Alert.alert('Success', 'PIN Created Successfully: ' + enteredPin);
+    await enableBiometricAuth(enteredPin);
   };
 
   return (
     <View style={styles.container}>
-      {/* Header - Same as OTPScreen with Logo */}
       <View style={styles.header}>
         <View style={styles.logoSection}>
           <Image
@@ -66,15 +116,11 @@ const PinCreationScreen = () => {
         </View>
       </View>
 
-      {/* Title */}
       <Text style={styles.title}>Create a New PIN</Text>
-
-      {/* Subtitle */}
       <Text style={styles.subtitle}>
         Please create a 4-digit PIN that will be used to access your account
       </Text>
 
-      {/* Enter PIN Section */}
       <Text style={styles.sectionTitle}>Enter PIN</Text>
       <View style={styles.inputSection}>
         <View style={styles.pinContainer}>
@@ -104,7 +150,6 @@ const PinCreationScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Confirm PIN Section */}
       <Text style={styles.sectionTitle}>Confirm PIN</Text>
       <View style={styles.inputSection}>
         <View style={styles.pinContainer}>
@@ -127,7 +172,6 @@ const PinCreationScreen = () => {
         </View>
       </View>
 
-      {/* Submit Button */}
       <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
         <Text style={styles.buttonText}>Submit</Text>
       </TouchableOpacity>
