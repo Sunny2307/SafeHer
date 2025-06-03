@@ -21,12 +21,13 @@ const OTPScreen = () => {
 
   const handleVerify = () => {
     const enteredOtp = otp.join('');
-    if (enteredOtp.length === 4) {
-      alert('OTP Verified: ' + enteredOtp);
-      navigation.navigate('PinCreationScreen'); // Navigate to PinCreationScreen
-    } else {
+    if (enteredOtp.length !== 4) {
       alert('Please enter a 4-digit OTP');
+      return;
     }
+
+    // Fake OTP validation - just proceed to next screen
+    navigation.navigate('PinCreationScreen');
   };
 
   const handleResend = () => {
@@ -35,14 +36,13 @@ const OTPScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header - Updated to match PinCreationScreen with Logo */}
       <View style={styles.header}>
         <View style={styles.logoSection}>
-          <Image
+          {/* <Image
             source={require('../../assets/safeher_logo.png')}
             style={styles.logo}
             resizeMode="contain"
-          />
+          /> */}
           <Text style={styles.logoText}>SafeHer</Text>
         </View>
       </View>

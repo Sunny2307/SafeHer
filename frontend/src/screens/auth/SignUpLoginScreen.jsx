@@ -7,7 +7,13 @@ const SignUpLoginScreen = () => {
   const navigation = useNavigation();
 
   const handleContinue = () => {
-    navigation.navigate('OTPScreen', { phoneNumber });
+    // Remove any non-digit characters and ensure the phone number is 10 digits
+    const cleanedPhoneNumber = phoneNumber.replace(/\D/g, '');
+    if (cleanedPhoneNumber.length !== 10) {
+      alert('Please enter a valid 10-digit mobile number');
+      return;
+    }
+    navigation.navigate('OTPScreen', { phoneNumber: cleanedPhoneNumber });
   };
 
   return (

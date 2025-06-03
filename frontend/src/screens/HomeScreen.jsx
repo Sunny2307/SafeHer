@@ -1,3 +1,5 @@
+// HomeScreen.jsx
+
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
@@ -17,6 +19,9 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import MapView, { Marker } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import { check, PERMISSIONS, RESULTS } from 'react-native-permissions';
+import { getUser } from '../api/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
 
 const HomeScreen = () => {
   const [location, setLocation] = useState(null);
@@ -24,7 +29,9 @@ const HomeScreen = () => {
   const [debugMessage, setDebugMessage] = useState('Initializing...');
   const [modalVisible, setModalVisible] = useState(false);
   const [mobileNumber, setMobileNumber] = useState('');
+  const [userData, setUserData] = useState(null);
   const watchIdRef = useRef(null);
+  const navigation = useNavigation();
 
   const requestLocationPermission = async () => {
     try {
@@ -99,8 +106,27 @@ const HomeScreen = () => {
     );
   };
 
+  const fetchUserData = async () => {
+    try {
+      const response = await getUser();
+      setUserData(response.data);
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Failed to fetch user data';
+      Alert.alert('Error', errorMessage);
+      if (error.response?.status === 401) {
+        navigation.navigate('SignUpLoginScreen');
+      }
+    }
+  };
+
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem('jwtToken');
+    navigation.navigate('SignUpLoginScreen');
+  };
+
   useEffect(() => {
     startLiveLocationTracking();
+    fetchUserData();
 
     return () => {
       if (watchIdRef.current !== null) {
@@ -160,6 +186,19 @@ const HomeScreen = () => {
           <Icon name="menu-outline" size={28} color="#000" />
         </View>
       </View>
+
+      {/* Profile Section */}
+      {userData ? (
+        <View style={styles.profileSection}>
+          <Text style={styles.profileText}>Welcome, {userData.name || 'User'}</Text>
+          <Text style={styles.profileText}>Phone: {userData.phoneNumber}</Text>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutButtonText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <Text>Loading profile...</Text>
+      )}
 
       {/* Title */}
       <Text style={styles.pageTitle}>Track me</Text>
@@ -263,7 +302,31 @@ const styles = StyleSheet.create({
   logo: { width: 50, height: 50, marginRight: 10 },
   logoText: { fontSize: 28, fontWeight: 'bold', color: '#FF69B4' },
   iconContainer: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  icon: { marginRight: 12 },
+  profileSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#f8f8f8',
+    marginHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  profileText: {
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 5,
+  },
+  logoutButton: {
+    backgroundColor: '#FF4B5C',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+    marginTop: 5,
+  },
+  logoutButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
   pageTitle: { fontSize: 20, fontWeight: 'bold', paddingHorizontal: 16, marginTop: 8, color: '#000' },
   subTitle: { fontSize: 14, paddingHorizontal: 16, color: '#555', marginBottom: 10 },
   friendSection: {
@@ -291,19 +354,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  debugOverlay: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    right: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    padding: 10,
-    borderRadius: 5,
-  },
-  debugText: {
-    color: '#fff',
-    fontSize: 12,
   },
   trackButton: {
     position: 'absolute',
@@ -396,6 +446,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
-
 
 export default HomeScreen;

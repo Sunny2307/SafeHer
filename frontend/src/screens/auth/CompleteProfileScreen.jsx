@@ -1,23 +1,33 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { saveName } from '../api/api';
 
 const CompleteProfileScreen = () => {
   const [name, setName] = useState('');
   const navigation = useNavigation();
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!name.trim()) {
       alert('Please enter your name');
       return;
     }
-    alert('Profile Completed: Welcome, ' + name);
-    navigation.navigate('HomeScreen'); // Navigate to HomeScreen
+
+    try {
+      await saveName(name);
+      alert('Profile Completed: Welcome, ' + name);
+      navigation.navigate('HomeScreen');
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Failed to save name';
+      alert(errorMessage);
+      if (error.response?.status === 401) {
+        navigation.navigate('SignUpLoginScreen');
+      }
+    }
   };
 
   return (
     <View style={styles.container}>
-      {/* Header - Same as PinCreationScreen with Logo */}
       <View style={styles.header}>
         <View style={styles.logoSection}>
           <Image
@@ -29,10 +39,8 @@ const CompleteProfileScreen = () => {
         </View>
       </View>
 
-      {/* Title */}
       <Text style={styles.title}>Enter your name</Text>
 
-      {/* Name Input */}
       <TextInput
         style={styles.input}
         placeholder="Your Name"
@@ -41,7 +49,6 @@ const CompleteProfileScreen = () => {
         autoCapitalize="words"
       />
 
-      {/* Continue Button */}
       <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
         <Text style={styles.buttonText}>Continue</Text>
       </TouchableOpacity>

@@ -4,6 +4,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
 import * as Keychain from 'react-native-keychain';
+import { savePin } from '../api/api';
 
 const PinCreationScreen = () => {
   const [pin, setPin] = useState(['', '', '', '']);
@@ -61,14 +62,14 @@ const PinCreationScreen = () => {
                   accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED,
                 });
                 Alert.alert('Success', `${biometricLabel} authentication enabled successfully!`);
-                navigation.navigate('PinLoginScreen'); // Navigate to PinLoginScreen
+                navigation.navigate('PinLoginScreen');
               },
             },
             {
               text: 'No',
               onPress: () => {
                 Keychain.setGenericPassword('userPin', enteredPin);
-                navigation.navigate('PinLoginScreen'); // Navigate to PinLoginScreen
+                navigation.navigate('PinLoginScreen');
               },
               style: 'cancel',
             },
@@ -77,13 +78,13 @@ const PinCreationScreen = () => {
       } else {
         await Keychain.setGenericPassword('userPin', enteredPin);
         Alert.alert('Biometrics Not Supported', 'This device does not support biometric authentication.');
-        navigation.navigate('PinLoginScreen'); // Navigate to PinLoginScreen
+        navigation.navigate('PinLoginScreen');
       }
     } catch (error) {
       console.error('Error enabling biometrics:', error);
       Alert.alert('Error', 'Failed to enable biometric authentication. Proceeding without it.');
       await Keychain.setGenericPassword('userPin', enteredPin);
-      navigation.navigate('PinLoginScreen'); // Navigate to PinLoginScreen
+      navigation.navigate('PinLoginScreen');
     }
   };
 
@@ -99,8 +100,19 @@ const PinCreationScreen = () => {
       return;
     }
 
-    Alert.alert('Success', 'PIN Created Successfully: ' + enteredPin);
-    await enableBiometricAuth(enteredPin);
+    try {
+      // Save the PIN to the backend
+      await savePin(enteredPin, enteredConfirmPin);
+      Alert.alert('Success', 'PIN Created Successfully: ' + enteredPin);
+      await enableBiometricAuth(enteredPin);
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Failed to save PIN';
+      Alert.alert('Error', errorMessage);
+      if (error.response?.status === 401) {
+        // Token expired, redirect to SignUpLoginScreen
+        navigation.navigate('SignUpLoginScreen');
+      }
+    }
   };
 
   return (
