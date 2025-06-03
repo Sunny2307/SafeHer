@@ -1,6 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { login } from '../../api/api';
+import axios from 'axios';
 
 const OTPScreen = () => {
   const navigation = useNavigation();
@@ -19,15 +22,46 @@ const OTPScreen = () => {
     }
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     const enteredOtp = otp.join('');
     if (enteredOtp.length !== 4) {
       alert('Please enter a 4-digit OTP');
       return;
     }
 
-    // Fake OTP validation - just proceed to next screen
-    navigation.navigate('PinCreationScreen');
+    try {
+      const loginResponse = await login(phoneNumber, 'test123');
+      const { token } = loginResponse.data;
+
+      // Save JWT token in AsyncStorage
+      await AsyncStorage.setItem('jwtToken', token);
+
+      navigation.navigate('PinCreationScreen');
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await axios.post('http://192.168.186.18:3000/api/register', {
+            phoneNumber,
+            password: 'test123',
+          });
+
+          const loginResponse = await login(phoneNumber, 'test123');
+          const { token } = loginResponse.data;
+
+          // Save JWT token after registration and login
+          await AsyncStorage.setItem('jwtToken', token);
+
+          navigation.navigate('PinCreationScreen');
+        } catch (registerError) {
+          console.log('Register error details:', registerError.response);
+          const errorMessage = registerError.response?.data?.error || JSON.stringify(registerError.response?.data) || 'Failed to register';
+          alert(errorMessage);
+        }
+      } else {
+        const errorMessage = error.response?.data?.error || 'Failed to verify OTP';
+        alert(errorMessage);
+      }
+    }
   };
 
   const handleResend = () => {
@@ -38,11 +72,11 @@ const OTPScreen = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.logoSection}>
-          {/* <Image
+          <Image
             source={require('../../assets/safeher_logo.png')}
             style={styles.logo}
             resizeMode="contain"
-          /> */}
+          />
           <Text style={styles.logoText}>SafeHer</Text>
         </View>
       </View>

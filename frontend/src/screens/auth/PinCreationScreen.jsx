@@ -4,7 +4,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
 import * as Keychain from 'react-native-keychain';
-import { savePin } from '../api/api';
+import { savePin } from '../../api/api';
 
 const PinCreationScreen = () => {
   const [pin, setPin] = useState(['', '', '', '']);
@@ -110,7 +110,7 @@ const PinCreationScreen = () => {
       Alert.alert('Error', errorMessage);
       if (error.response?.status === 401) {
         // Token expired, redirect to SignUpLoginScreen
-        navigation.navigate('SignUpLoginScreen');
+        navigation.navigate('SignUpLogin');
       }
     }
   };
@@ -119,11 +119,11 @@ const PinCreationScreen = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.logoSection}>
-          <Image
+          {/* <Image
             source={require('../../assets/safeher_logo.png')}
             style={styles.logo}
             resizeMode="contain"
-          />
+          /> */}
           <Text style={styles.logoText}>SafeHer</Text>
         </View>
       </View>
