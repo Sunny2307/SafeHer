@@ -1,34 +1,48 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
 import * as Keychain from 'react-native-keychain';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Make sure this path is correct and savePin is exported from api.js
 import { savePin } from '../../api/api';
 
 const PinCreationScreen = () => {
   const [pin, setPin] = useState(['', '', '', '']);
   const [confirmPin, setConfirmPin] = useState(['', '', '', '']);
   const [showPin, setShowPin] = useState(false);
+
   const pinInputRefs = useRef([]);
   const confirmPinInputRefs = useRef([]);
+
   const navigation = useNavigation();
 
   const handlePinChange = (text, index) => {
     const newPin = [...pin];
-    newPin[index] = text;
+    newPin[index] = text.replace(/[^0-9]/g, ''); // Only digits
     setPin(newPin);
+
     if (text && index < 3) {
-      pinInputRefs.current[index + 1].focus();
+      pinInputRefs.current[index + 1]?.focus();
     }
   };
 
   const handleConfirmPinChange = (text, index) => {
     const newConfirmPin = [...confirmPin];
-    newConfirmPin[index] = text;
+    newConfirmPin[index] = text.replace(/[^0-9]/g, '');
     setConfirmPin(newConfirmPin);
+
     if (text && index < 3) {
-      confirmPinInputRefs.current[index + 1].focus();
+      confirmPinInputRefs.current[index + 1]?.focus();
     }
   };
 
@@ -38,9 +52,11 @@ const PinCreationScreen = () => {
 
   const enableBiometricAuth = async (enteredPin) => {
     const rnBiometrics = new ReactNativeBiometrics();
+
     try {
       const { available, biometryType } = await rnBiometrics.isSensorAvailable();
       let biometricLabel = '';
+
       if (available) {
         if (biometryType === BiometryTypes.TouchID) {
           biometricLabel = 'Touch ID';
@@ -62,35 +78,36 @@ const PinCreationScreen = () => {
                   accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED,
                 });
                 Alert.alert('Success', `${biometricLabel} authentication enabled successfully!`);
-                navigation.navigate('PinLoginScreen');
+                navigation.navigate('CompleteProfileScreen');
               },
             },
             {
               text: 'No',
-              onPress: () => {
-                Keychain.setGenericPassword('userPin', enteredPin);
-                navigation.navigate('PinLoginScreen');
+              onPress: async () => {
+                await Keychain.setGenericPassword('userPin', enteredPin);
+                navigation.navigate('CompleteProfileScreen');
               },
               style: 'cancel',
             },
-          ],
+          ]
         );
       } else {
         await Keychain.setGenericPassword('userPin', enteredPin);
         Alert.alert('Biometrics Not Supported', 'This device does not support biometric authentication.');
-        navigation.navigate('PinLoginScreen');
+        navigation.navigate('CompleteProfileScreen');
       }
     } catch (error) {
       console.error('Error enabling biometrics:', error);
       Alert.alert('Error', 'Failed to enable biometric authentication. Proceeding without it.');
       await Keychain.setGenericPassword('userPin', enteredPin);
-      navigation.navigate('PinLoginScreen');
+      navigation.navigate('CompleteProfileScreen');
     }
   };
 
   const handleSubmit = async () => {
     const enteredPin = pin.join('');
     const enteredConfirmPin = confirmPin.join('');
+
     if (enteredPin.length !== 4 || enteredConfirmPin.length !== 4) {
       Alert.alert('Error', 'Please enter a 4-digit PIN in both fields');
       return;
@@ -101,15 +118,20 @@ const PinCreationScreen = () => {
     }
 
     try {
-      // Save the PIN to the backend
+      // Make sure savePin API accepts these params
       await savePin(enteredPin, enteredConfirmPin);
-      Alert.alert('Success', 'PIN Created Successfully: ' + enteredPin);
+
+      // Store flag that setup completed
+      await AsyncStorage.setItem('isSetupComplete', 'true');
+
+      Alert.alert('Success', 'PIN Created Successfully');
+
       await enableBiometricAuth(enteredPin);
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Failed to save PIN';
       Alert.alert('Error', errorMessage);
+
       if (error.response?.status === 401) {
-        // Token expired, redirect to SignUpLoginScreen
         navigation.navigate('SignUpLogin');
       }
     }
@@ -119,11 +141,8 @@ const PinCreationScreen = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.logoSection}>
-          {/* <Image
-            source={require('../../assets/safeher_logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          /> */}
+          {/* Uncomment and provide your logo path */}
+          {/* <Image source={require('../../assets/safeher_logo.png')} style={styles.logo} resizeMode="contain" /> */}
           <Text style={styles.logoText}>SafeHer</Text>
         </View>
       </View>
@@ -147,18 +166,16 @@ const PinCreationScreen = () => {
               maxLength={1}
               textAlign="center"
               secureTextEntry={!showPin}
+              returnKeyType={index < 3 ? 'next' : 'done'}
               onSubmitEditing={() => {
-                if (index < 3) pinInputRefs.current[index + 1].focus();
+                if (index < 3) pinInputRefs.current[index + 1]?.focus();
               }}
+              blurOnSubmit={false}
             />
           ))}
         </View>
         <TouchableOpacity onPress={toggleShowPin}>
-          <Icon
-            name={showPin ? 'visibility' : 'visibility-off'}
-            size={24}
-            color="#4B1C46"
-          />
+          <Icon name={showPin ? 'visibility' : 'visibility-off'} size={24} color="#4B1C46" />
         </TouchableOpacity>
       </View>
 
@@ -176,9 +193,11 @@ const PinCreationScreen = () => {
               maxLength={1}
               textAlign="center"
               secureTextEntry={!showPin}
+              returnKeyType={index < 3 ? 'next' : 'done'}
               onSubmitEditing={() => {
-                if (index < 3) confirmPinInputRefs.current[index + 1].focus();
+                if (index < 3) confirmPinInputRefs.current[index + 1]?.focus();
               }}
+              blurOnSubmit={false}
             />
           ))}
         </View>

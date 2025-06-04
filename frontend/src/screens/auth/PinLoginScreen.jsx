@@ -101,7 +101,7 @@ const PinLoginScreen = () => {
             ref={(ref) => (pinInputRefs.current[index] = ref)}
             style={styles.pinInput}
             value={digit}
-            onChangeText={(text) => jadePinChange(text, index)}
+            onChangeText={(text) => handlePinChange(text, index)}
             keyboardType="numeric"
             maxLength={1}
             textAlign="center"

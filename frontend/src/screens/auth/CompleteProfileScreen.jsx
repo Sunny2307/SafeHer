@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { saveName } from '../api/api';
+import { saveName } from '../../api/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CompleteProfileScreen = () => {
   const [name, setName] = useState('');
@@ -15,6 +16,7 @@ const CompleteProfileScreen = () => {
 
     try {
       await saveName(name);
+      await AsyncStorage.setItem('isSetupComplete', 'true'); // ✅ Save setup complete
       alert('Profile Completed: Welcome, ' + name);
       navigation.navigate('HomeScreen');
     } catch (error) {
@@ -30,11 +32,11 @@ const CompleteProfileScreen = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.logoSection}>
-          <Image
+          {/* <Image
             source={require('../../assets/safeher_logo.png')}
             style={styles.logo}
             resizeMode="contain"
-          />
+          /> */}
           <Text style={styles.logoText}>SafeHer</Text>
         </View>
       </View>
