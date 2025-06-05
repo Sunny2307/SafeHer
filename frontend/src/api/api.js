@@ -47,4 +47,7 @@ export const savePin = (pin, confirmPin) =>
 export const getUser = () =>
   api.get('/auth/getUser');
 
+export const verifyPin = (pin) =>
+  api.post('/user/verifyPin', { pin });
+
 export default api;
