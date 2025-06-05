@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'reac
 import ReactNativeBiometrics from 'react-native-biometrics';
 import * as Keychain from 'react-native-keychain';
 import { useNavigation } from '@react-navigation/native';
-import { getUser } from '../api/api';
+import { getUser, verifyPin } from '../api/api'; // Added verifyPin import
 
 const PinLoginScreen = () => {
   const [pin, setPin] = useState(['', '', '', '']);
@@ -23,16 +23,11 @@ const PinLoginScreen = () => {
           authenticationPrompt: { title: 'Authenticate to access SafeHer' },
         });
         if (credentials) {
-          // Verify PIN with backend
+          // Verify PIN with backend using verifyPin
           try {
-            const response = await getUser();
-            const userPin = response.data.pin;
-            if (userPin === credentials.password) {
-              Alert.alert('Success', 'Authenticated with biometrics!');
-              navigation.navigate('CompleteProfileScreen');
-            } else {
-              Alert.alert('Error', 'PIN does not match backend. Please enter your PIN manually.');
-            }
+            await verifyPin(credentials.password);
+            Alert.alert('Success', 'Authenticated with biometrics!');
+            navigation.navigate('CompleteProfileScreen');
           } catch (error) {
             const errorMessage = error.response?.data?.error || 'Failed to verify PIN with backend';
             Alert.alert('Error', errorMessage);
@@ -65,20 +60,15 @@ const PinLoginScreen = () => {
     }
 
     try {
-      // Verify PIN with backend
-      const response = await getUser();
-      const userPin = response.data.pin;
-      if (userPin === enteredPin) {
-        // Verify with Keychain for local consistency
-        const credentials = await Keychain.getGenericPassword();
-        if (credentials && credentials.password === enteredPin) {
-          Alert.alert('Success', 'PIN verified successfully!');
-          navigation.navigate('CompleteProfileScreen');
-        } else {
-          Alert.alert('Error', 'Local PIN does not match. Please reset your PIN.');
-        }
+      // Verify PIN with backend using verifyPin
+      await verifyPin(enteredPin);
+      // Verify with Keychain for local consistency
+      const credentials = await Keychain.getGenericPassword();
+      if (credentials && credentials.password === enteredPin) {
+        Alert.alert('Success', 'PIN verified successfully!');
+        navigation.navigate('CompleteProfileScreen');
       } else {
-        Alert.alert('Error', 'Invalid PIN. Please try again.');
+        Alert.alert('Error', 'Local PIN does not match. Please reset your PIN.');
       }
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Failed to verify PIN';
