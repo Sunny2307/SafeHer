@@ -50,4 +50,7 @@ export const getUser = () =>
 export const verifyPin = (pin) =>
   api.post('/user/verifyPin', { pin });
 
+export const checkUser = (phoneNumber) =>
+  api.post('/api/checkUser', { phoneNumber });
+
 export default api;
