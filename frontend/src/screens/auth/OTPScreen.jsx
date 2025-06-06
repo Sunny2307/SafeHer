@@ -40,7 +40,7 @@ const OTPScreen = () => {
     } catch (error) {
       if (error.response?.status === 401) {
         try {
-          await axios.post('http://192.168.186.18:3000/api/register', {
+          await axios.post('http://192.168.56.102:3000/api/register', {
             phoneNumber,
             password: 'test123',
           });

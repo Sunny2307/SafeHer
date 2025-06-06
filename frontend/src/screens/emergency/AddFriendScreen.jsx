@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import CheckBox from '@react-native-community/checkbox';
 import Icon from 'react-native-vector-icons/Ionicons';
-import Contacts from 'react-native-contacts';
+import { selectContactPhone } from 'react-native-select-contact';
 
 const AddFriendScreen = ({ navigation }) => {
   const [countryCode, setCountryCode] = useState('IN');
@@ -22,12 +22,13 @@ const AddFriendScreen = ({ navigation }) => {
   const [isSOS, setIsSOS] = useState(true);
 
   const handleAddContact = () => {
-    if (phoneNumber.length < 10) {
-      Alert.alert('Invalid Number', 'Please enter a valid phone number.');
+    if (phoneNumber.length !== 10) {
+      Alert.alert('Invalid Number', 'Please enter a valid 10-digit phone number.');
       return;
     }
-    Alert.alert('Success', 'Contact added successfully!');
-    setPhoneNumber('');
+    Alert.alert('Success', 'Contact saved successfully!', [
+      { text: 'OK', onPress: () => setPhoneNumber('') },
+    ]);
   };
 
   const requestContactsPermission = async () => {
@@ -56,41 +57,32 @@ const AddFriendScreen = ({ navigation }) => {
   const handleContactSelection = async () => {
     const hasPermission = await requestContactsPermission();
     if (!hasPermission) {
-      Alert.alert('Permission Denied', 'Contacts permission is required to use this feature.');
+      Alert.alert('Permission Denied', 'Contacts permission is required.');
       return;
     }
 
     try {
-      const contacts = await Contacts.getAll();
-      if (contacts.length === 0) {
-        Alert.alert('No Contacts', 'No contacts found on your device.');
-        return;
-      }
-
-      const selectedContact = contacts.find(contact => contact.phoneNumbers.length > 0);
-      if (selectedContact) {
-        let number = selectedContact.phoneNumbers[0].number;
-        number = number.replace(/[^0-9]/g, '');
-        if (number.startsWith('+91')) {
-          number = number.slice(3);
-        }
+      const selection = await selectContactPhone();
+      if (selection) {
+        let number = selection.selectedPhone.number.replace(/[^0-9]/g, '');
+        if (number.startsWith('+91')) number = number.slice(3);
         if (number.length === 10) {
           setPhoneNumber(number);
+          Alert.alert('Contact Saved', `${selection.contact.name || 'Contact'} has been selected and saved.`);
         } else {
-          Alert.alert('Invalid Number', 'The selected contact number is not a valid 10-digit Indian number.');
+          Alert.alert('Invalid Number', 'The selected number is not a valid 10-digit Indian number.');
         }
       } else {
-        Alert.alert('No Contacts', 'No contacts with phone numbers found.');
+        Alert.alert('No Contact Selected', 'No contact was selected.');
       }
     } catch (error) {
-      console.error('Contacts Error:', error);
-      Alert.alert('Error', 'Unable to access contacts. Please try again.');
+      console.error('Contact Selection Error:', error);
+      Alert.alert('Error', 'Unable to select contact. Please try again.');
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Icon name="arrow-back-outline" size={24} color="#000" />
@@ -108,7 +100,6 @@ const AddFriendScreen = ({ navigation }) => {
         </View>
       </View>
 
-      {/* Centered Content with ScrollView */}
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.centeredContent}>
           <Text style={styles.title}>Add Friend</Text>
@@ -153,8 +144,8 @@ const AddFriendScreen = ({ navigation }) => {
           </View>
 
           <TouchableOpacity
-            style={[styles.button, phoneNumber.length < 10 && { opacity: 0.5 }]}
-            disabled={phoneNumber.length < 10}
+            style={[styles.button, phoneNumber.length !== 10 && { opacity: 0.5 }]}
+            disabled={phoneNumber.length !== 10}
             onPress={handleAddContact}
           >
             <Text style={styles.buttonText}>Add SOS Contact</Text>
