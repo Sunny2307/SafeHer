@@ -1,19 +1,36 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { checkUser } from '../api/api'; // Import checkUser
 
 const SignUpLoginScreen = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const navigation = useNavigation();
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     // Remove any non-digit characters and ensure the phone number is 10 digits
     const cleanedPhoneNumber = phoneNumber.replace(/\D/g, '');
     if (cleanedPhoneNumber.length !== 10) {
       alert('Please enter a valid 10-digit mobile number');
       return;
     }
-    navigation.navigate('OTPScreen', { phoneNumber: cleanedPhoneNumber });
+
+    try {
+      // Check if the phone number exists in the database
+      const response = await checkUser(cleanedPhoneNumber);
+      const { exists } = response.data;
+
+      if (exists) {
+        // User exists, navigate to PinLoginScreen
+        navigation.navigate('PinLoginScreen', { phoneNumber: cleanedPhoneNumber });
+      } else {
+        // User does not exist, navigate to OTPScreen
+        navigation.navigate('OTPScreen', { phoneNumber: cleanedPhoneNumber });
+      }
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Failed to check user existence';
+      alert(errorMessage);
+    }
   };
 
   return (
@@ -130,7 +147,7 @@ const styles = StyleSheet.create({
   },
   countryCodeContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    업데이트alignItems: 'center',
     marginRight: 5,
   },
   indianFlag: {
