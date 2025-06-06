@@ -1,9 +1,31 @@
-// routes/loginRoutes.js
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { db } = require('../firebase'); // Firestore instance
 
 const router = express.Router();
+
+// Check if user exists
+router.post('/checkUser', async (req, res) => {
+  const { phoneNumber } = req.body;
+
+  if (!phoneNumber) {
+    return res.status(400).json({ error: 'Phone number is required' });
+  }
+
+  try {
+    const userRef = db.collection('users').doc(phoneNumber);
+    const userDoc = await userRef.get();
+
+    if (userDoc.exists) {
+      return res.status(200).json({ exists: true });
+    } else {
+      return res.status(200).json({ exists: false });
+    }
+  } catch (error) {
+    console.error('Check user error:', error);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
 
 // Login route
 router.post('/login', async (req, res) => {
