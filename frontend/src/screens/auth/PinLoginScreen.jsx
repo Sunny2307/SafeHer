@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'reac
 import ReactNativeBiometrics from 'react-native-biometrics';
 import * as Keychain from 'react-native-keychain';
 import { useNavigation } from '@react-navigation/native';
-import { getUser, verifyPin } from '../api/api'; // Added verifyPin import
+import { getUser, verifyPin } from '../../api/api'; // Added verifyPin import
 
 const PinLoginScreen = () => {
   const [pin, setPin] = useState(['', '', '', '']);
@@ -27,7 +27,7 @@ const PinLoginScreen = () => {
           try {
             await verifyPin(credentials.password);
             Alert.alert('Success', 'Authenticated with biometrics!');
-            navigation.navigate('CompleteProfileScreen');
+            navigation.navigate('HomeScreen');
           } catch (error) {
             const errorMessage = error.response?.data?.error || 'Failed to verify PIN with backend';
             Alert.alert('Error', errorMessage);
@@ -66,7 +66,7 @@ const PinLoginScreen = () => {
       const credentials = await Keychain.getGenericPassword();
       if (credentials && credentials.password === enteredPin) {
         Alert.alert('Success', 'PIN verified successfully!');
-        navigation.navigate('CompleteProfileScreen');
+        navigation.navigate('HomeScreen');
       } else {
         Alert.alert('Error', 'Local PIN does not match. Please reset your PIN.');
       }

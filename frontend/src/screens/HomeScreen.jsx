@@ -135,7 +135,7 @@ const HomeScreen = () => {
     };
   }, []);
 
-  const handleAddFriend = () => alert('Add Friend feature coming soon!');
+  const handleAddFriend = () => navigation.navigate('AddFriendScreen');
 
   const handleTrackMe = () => {
     if (!location) {
@@ -187,7 +187,7 @@ const HomeScreen = () => {
         </View>
       </View>
 
-      {/* Profile Section */}
+      {/* Profile Section
       {userData ? (
         <View style={styles.profileSection}>
           <Text style={styles.profileText}>Welcome, {userData.name || 'User'}</Text>
@@ -198,7 +198,7 @@ const HomeScreen = () => {
         </View>
       ) : (
         <Text>Loading profile...</Text>
-      )}
+      )} */}
 
       {/* Title */}
       <Text style={styles.pageTitle}>Track me</Text>

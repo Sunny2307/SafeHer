@@ -8,6 +8,7 @@ import PinCreationScreen from '../../src/screens/auth/PinCreationScreen';
 import CompleteProfileScreen from '../screens/auth/CompleteProfileScreen';
 import HomeScreen from '../screens/HomeScreen';
 import PinLoginScreen from '../screens/auth/PinLoginScreen';
+import AddFriendScreen from '../screens/emergency/AddFriendScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -43,6 +44,11 @@ const AppNavigator = ({ initialRouteName }) => {
         <Stack.Screen
           name="HomeScreen"
           component={HomeScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AddFriendScreen"
+          component={AddFriendScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

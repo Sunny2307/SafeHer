@@ -107,6 +107,13 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
+    // Inside android {} block or at the bottom of build.gradle
+    afterEvaluate {
+    tasks.named("generateDebugLintReportModel").configure {
+        dependsOn tasks.named("copyReactNativeVectorIconFonts")
+    }
+}
+
 }
 
 dependencies {
@@ -128,11 +135,16 @@ buildscript {
 
      repositories {
         google()           // ✅ Required for google-services
-        mavenCentral()     // ✅ Required for many dependencies
+        mavenCentral()   // ✅ Required for many dependencies 
     }
     dependencies {
         classpath 'com.google.gms:google-services:4.3.15'
     }
 }
-
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
 apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"

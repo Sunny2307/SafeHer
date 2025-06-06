@@ -61,4 +61,36 @@ router.post('/savePin', authenticate, async (req, res) => {
   }
 });
 
+// In userRoutes.js
+router.post('/verifyPin', authenticate, async (req, res) => {
+  const { pin } = req.body;
+
+  if (!pin) {
+    return res.status(400).json({ error: 'PIN is required' });
+  }
+
+  if (!/^\d{4}$/.test(pin)) {
+    return res.status(400).json({ error: 'PIN must be a 4-digit number' });
+  }
+
+  try {
+    const userRef = db.collection('users').doc(req.user.phoneNumber);
+    const userDoc = await userRef.get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = userDoc.data();
+    if (user.pin !== pin) {
+      return res.status(401).json({ error: 'Incorrect PIN' });
+    }
+
+    return res.status(200).json({ message: 'PIN verified successfully' });
+  } catch (error) {
+    console.error('Error in /user/verifyPin:', error);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
 module.exports = router;
