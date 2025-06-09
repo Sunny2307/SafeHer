@@ -1,12 +1,9 @@
-// HomeScreen.jsx
-
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  Image,
   SafeAreaView,
   PermissionsAndroid,
   Platform,
@@ -15,13 +12,14 @@ import {
   TextInput,
   Linking,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
 import MapView, { Marker } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import { check, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import { getUser } from '../api/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
+import Header from '../components/Header';
+import BottomNav from '../components/BottomNav';
 
 const HomeScreen = () => {
   const [location, setLocation] = useState(null);
@@ -167,25 +165,10 @@ const HomeScreen = () => {
     }
   };
 
-  const handleBottomNav = (label) => alert(`${label} feature coming soon!`);
-
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.logoSection}>
-          <Image
-            source={require('../assets/safeher_logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          <Text style={styles.logoText}>SafeHer</Text>
-        </View>
-        <View style={styles.iconContainer}>
-          <Icon name="notifications-outline" size={24} color="#000" />
-          <Icon name="menu-outline" size={28} color="#000" />
-        </View>
-      </View>
+      <Header />
 
       {/* Profile Section
       {userData ? (
@@ -267,41 +250,13 @@ const HomeScreen = () => {
       </Modal>
 
       {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        {[
-          ['location-outline', 'Track Me'],
-          ['mic-outline', 'Record'],
-          ['warning-outline', 'SOS', true],
-          ['call-outline', 'Fake Call'],
-          ['help-circle-outline', 'Help'],
-        ].map(([icon, label, isSos], index) => (
-          <TouchableOpacity
-            key={index}
-            style={[styles.navItem, isSos && styles.sosButton]}
-            onPress={() => handleBottomNav(label)}
-          >
-            <Icon name={icon} size={26} color={isSos ? '#fff' : '#000'} />
-            <Text style={[styles.navText, isSos && { color: '#fff' }]}>{label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <BottomNav />
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  logoSection: { flexDirection: 'row', alignItems: 'center' },
-  logo: { width: 50, height: 50, marginRight: 10 },
-  logoText: { fontSize: 28, fontWeight: 'bold', color: '#FF69B4' },
-  iconContainer: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   profileSection: {
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -369,24 +324,6 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   trackButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  bottomNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 1,
-    borderTopWidth: 1,
-    borderTopColor: '#ddd',
-    backgroundColor: '#fff',
-  },
-  navItem: { alignItems: 'center', justifyContent: 'center' },
-  navText: { fontSize: 10, textAlign: 'center', color: '#000', marginTop: 4 },
-  sosButton: {
-    backgroundColor: '#FF4B5C',
-    padding: 14,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    top: -15,
-  },
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
