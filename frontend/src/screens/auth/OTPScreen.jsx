@@ -1,91 +1,77 @@
+// OTPScreen.js
 import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { login } from '../../api/api';
-import axios from 'axios';
+import { verifyOTP, sendOTP } from '../../api/api';
 
 const OTPScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { phoneNumber } = route.params;
+  const { phoneNumber, sessionId } = route.params;
 
-  const [otp, setOtp] = useState(['', '', '', '']);
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef([]);
 
   const handleOtpChange = (text, index) => {
     const newOtp = [...otp];
     newOtp[index] = text;
     setOtp(newOtp);
-    if (text && index < 3) {
+    if (text && index < 5) {
       inputRefs.current[index + 1].focus();
     }
   };
 
   const handleVerify = async () => {
     const enteredOtp = otp.join('');
-    if (enteredOtp.length !== 4) {
-      alert('Please enter a 4-digit OTP');
+    if (enteredOtp.length !== 6) {
+      Alert.alert('Error', 'Please enter a 6-digit OTP');
       return;
     }
 
     try {
-      const loginResponse = await login(phoneNumber, 'test123');
-      const { token } = loginResponse.data;
-
-      // Save JWT token in AsyncStorage
-      await AsyncStorage.setItem('jwtToken', token);
-
-      navigation.navigate('PinCreationScreen');
+      const verifyResponse = await verifyOTP(sessionId, enteredOtp);
+      console.log('OTP verified:', verifyResponse.data);
+      Alert.alert('Success', 'OTP verified successfully!');
+      navigation.navigate('PinCreationScreen', { phoneNumber });
     } catch (error) {
-      if (error.response?.status === 401) {
-        try {
-          await axios.post('http://192.168.56.102:3000/api/register', {
-            phoneNumber,
-            password: 'test123',
-          });
-
-          const loginResponse = await login(phoneNumber, 'test123');
-          const { token } = loginResponse.data;
-
-          // Save JWT token after registration and login
-          await AsyncStorage.setItem('jwtToken', token);
-
-          navigation.navigate('PinCreationScreen');
-        } catch (registerError) {
-          console.log('Register error details:', registerError.response);
-          const errorMessage = registerError.response?.data?.error || JSON.stringify(registerError.response?.data) || 'Failed to register';
-          alert(errorMessage);
-        }
-      } else {
-        const errorMessage = error.response?.data?.error || 'Failed to verify OTP';
-        alert(errorMessage);
-      }
+      console.error('OTP verification error:', {
+        message: error.message,
+        response: error.response
+          ? {
+              status: error.response.status,
+              data: error.response.data,
+            }
+          : 'No response received',
+      });
+      const errorMessage = error.response?.data?.error || 'Failed to verify OTP';
+      Alert.alert('Error', errorMessage);
     }
   };
 
-  const handleResend = () => {
-    alert('OTP Resent to +91 ' + phoneNumber);
+  const handleResend = async () => {
+    try {
+      const otpResponse = await sendOTP(phoneNumber);
+      Alert.alert('Success', `OTP resent to +91 ${phoneNumber}`);
+      console.log('New OTP sent with session ID:', otpResponse.data.sessionId);
+      route.params.sessionId = otpResponse.data.sessionId;
+    } catch (error) {
+      console.error('Error resending OTP:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to resend OTP';
+      Alert.alert('Error', errorMessage);
+    }
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.logoSection}>
-          <Image
-            source={require('../../assets/safeher_logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
           <Text style={styles.logoText}>SafeHer</Text>
         </View>
       </View>
-
       <Text style={styles.title}>Enter OTP</Text>
       <Text style={styles.subtitle}>
-        Enter the 4-digit code sent to +91 {phoneNumber}
+        Enter the 6-digit code received on +91 {phoneNumber}
       </Text>
-
       <View style={styles.otpContainer}>
         {otp.map((digit, index) => (
           <TextInput
@@ -98,16 +84,14 @@ const OTPScreen = () => {
             maxLength={1}
             textAlign="center"
             onSubmitEditing={() => {
-              if (index < 3) inputRefs.current[index + 1].focus();
+              if (index < 5) inputRefs.current[index + 1].focus();
             }}
           />
         ))}
       </View>
-
       <TouchableOpacity style={styles.verifyButton} onPress={handleVerify}>
         <Text style={styles.buttonText}>Verify</Text>
       </TouchableOpacity>
-
       <TouchableOpacity onPress={handleResend}>
         <Text style={styles.resendText}>Resend OTP</Text>
       </TouchableOpacity>
@@ -118,8 +102,8 @@ const OTPScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingVertical: 40,
+    paddingHorizontal: 25,
+    paddingVertical: 20,
     backgroundColor: '#fff',
     justifyContent: 'flex-start',
   },
@@ -129,12 +113,6 @@ const styles = StyleSheet.create({
   logoSection: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  logo: {
-    width: 60,
-    height: 60,
-    marginRight: 15,
-    marginTop: -30,
   },
   logoText: {
     fontSize: 35,
@@ -168,6 +146,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 12,
+    marginHorizontal: 5,
     fontSize: 24,
     textAlign: 'center',
     backgroundColor: '#f9f9f9',
@@ -182,7 +161,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
   },
   resendText: {

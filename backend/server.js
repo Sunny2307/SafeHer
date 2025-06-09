@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.json());
 
 // Define routes
-app.use('/api', loginRoutes);      // /api/login and /api/register
+app.use('/api', loginRoutes);      // /api/checkUser, /api/register, /api/login, /api/send-otp, /api/verify-otp
 app.use('/auth', authRoutes.router);
 app.use('/user', userRoutes);
 

@@ -1,3 +1,4 @@
+// api/api.js
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -26,9 +27,7 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid, clear it and redirect to login
       await AsyncStorage.removeItem('jwtToken');
-      // Navigation will be handled in the component
       console.log('Token expired, please log in again');
     }
     return Promise.reject(error);
@@ -37,6 +36,9 @@ api.interceptors.response.use(
 
 export const login = (phoneNumber, password) =>
   api.post('/api/login', { phoneNumber, password });
+
+export const register = (phoneNumber, password) =>
+  api.post('/api/register', { phoneNumber, password });
 
 export const saveName = (name) =>
   api.post('/user/saveName', { name });
@@ -52,5 +54,11 @@ export const verifyPin = (pin) =>
 
 export const checkUser = (phoneNumber) =>
   api.post('/api/checkUser', { phoneNumber });
+
+export const sendOTP = (phoneNumber) =>
+  api.post('/api/send-otp', { phoneNumber });
+
+export const verifyOTP = (sessionId, otp) =>
+  api.post('/api/verify-otp', { sessionId, otp });
 
 export default api;

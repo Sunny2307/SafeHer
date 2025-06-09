@@ -1,35 +1,87 @@
+// SignUpLoginScreen.js
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { checkUser } from '../api/api'; // Import checkUser
+import { checkUser, sendOTP } from '../../api/api';
+
+// Utility function to add a timeout to a promise
+const withTimeout = (promise, timeoutMs) => {
+  const timeout = new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`Operation timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+  return Promise.race([promise, timeout]);
+};
 
 const SignUpLoginScreen = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigation = useNavigation();
 
   const handleContinue = async () => {
-    // Remove any non-digit characters and ensure the phone number is 10 digits
+    if (isLoading) return;
+
+    setIsLoading(true);
+
+    if (!phoneNumber || typeof phoneNumber !== 'string') {
+      if (Platform.OS === 'android') {
+        console.log('Error: Please enter a valid mobile number');
+      } else {
+        Alert.alert('Error', 'Please enter a valid mobile number');
+      }
+      setIsLoading(false);
+      return;
+    }
+
     const cleanedPhoneNumber = phoneNumber.replace(/\D/g, '');
     if (cleanedPhoneNumber.length !== 10) {
-      alert('Please enter a valid 10-digit mobile number');
+      if (Platform.OS === 'android') {
+        console.log('Error: Please enter a valid 10-digit mobile number');
+      } else {
+        Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
+      }
+      setIsLoading(false);
       return;
     }
 
     try {
-      // Check if the phone number exists in the database
-      const response = await checkUser(cleanedPhoneNumber);
+      console.log('Checking user:', cleanedPhoneNumber);
+      const response = await withTimeout(checkUser(cleanedPhoneNumber), 10000);
+      console.log('API response:', response);
       const { exists } = response.data;
 
       if (exists) {
-        // User exists, navigate to PinLoginScreen
+        console.log('Navigating to PinLoginScreen');
         navigation.navigate('PinLoginScreen', { phoneNumber: cleanedPhoneNumber });
       } else {
-        // User does not exist, navigate to OTPScreen
-        navigation.navigate('OTPScreen', { phoneNumber: cleanedPhoneNumber });
+        console.log('Sending OTP via 2Factor.in');
+        const otpResponse = await withTimeout(sendOTP(cleanedPhoneNumber), 10000);
+        console.log('OTP sent successfully:', otpResponse.data);
+        navigation.navigate('OTPScreen', {
+          phoneNumber: cleanedPhoneNumber,
+          sessionId: otpResponse.data.sessionId,
+        });
+        console.log('Navigation to OTPScreen triggered');
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Failed to check user existence';
-      alert(errorMessage);
+      console.error('Error checking user or sending OTP:', {
+        message: error.message,
+        response: error.response
+          ? {
+              status: error.response.status,
+              data: error.response.data,
+            }
+          : 'No response received',
+      });
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to process request';
+      if (Platform.OS === 'android') {
+        console.log('Error:', errorMessage);
+      } else {
+        Alert.alert('Error', errorMessage);
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -38,11 +90,6 @@ const SignUpLoginScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.logoSection}>
-          <Image
-            source={require('../../assets/safeher_logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
           <Text style={styles.logoText}>SafeHer</Text>
         </View>
       </View>
@@ -54,10 +101,6 @@ const SignUpLoginScreen = () => {
       <Text style={styles.label}>Enter your mobile number</Text>
       <View style={styles.inputContainer}>
         <View style={styles.countryCodeContainer}>
-          <Image
-            source={require('../../assets/in.png')}
-            style={styles.indianFlag}
-          />
           <Text style={styles.countryCode}>+91</Text>
         </View>
         <TextInput
@@ -70,8 +113,12 @@ const SignUpLoginScreen = () => {
       </View>
 
       {/* Continue Button */}
-      <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
-        <Text style={styles.buttonText}>Continue</Text>
+      <TouchableOpacity
+        style={[styles.continueButton, isLoading && styles.disabledButton]}
+        onPress={handleContinue}
+        disabled={isLoading}
+      >
+        <Text style={styles.buttonText}>{isLoading ? 'Processing...' : 'Continue'}</Text>
       </TouchableOpacity>
 
       {/* Separator */}
@@ -83,11 +130,6 @@ const SignUpLoginScreen = () => {
 
       {/* Google Button */}
       <TouchableOpacity style={styles.googleButton}>
-        <Image
-          source={require('../../assets/google_logo.png')}
-          style={styles.googleIcon}
-          resizeMode="contain"
-        />
         <Text style={styles.googleButtonText}>Continue with Google</Text>
       </TouchableOpacity>
 
@@ -111,12 +153,6 @@ const styles = StyleSheet.create({
   logoSection: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  logo: {
-    width: 60,
-    height: 60,
-    marginRight: 15,
-    marginTop: -15,
   },
   logoText: {
     fontSize: 35,
@@ -147,12 +183,7 @@ const styles = StyleSheet.create({
   },
   countryCodeContainer: {
     flexDirection: 'row',
-    업데이트alignItems: 'center',
-    marginRight: 5,
-  },
-  indianFlag: {
-    width: 30,
-    height: 30,
+    alignItems: 'center',
     marginRight: 5,
   },
   countryCode: {
@@ -170,6 +201,9 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     alignItems: 'center',
     marginBottom: 25,
+  },
+  disabledButton: {
+    backgroundColor: '#a9a9a9',
   },
   buttonText: {
     color: '#fff',
@@ -201,11 +235,6 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     paddingHorizontal: 15,
     marginBottom: 25,
-  },
-  googleIcon: {
-    width: 60,
-    height: 28,
-    marginRight: 10,
   },
   googleButtonText: {
     fontSize: 18,
