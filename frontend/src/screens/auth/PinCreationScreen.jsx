@@ -1,4 +1,3 @@
-// PinCreationScreen.js
 import React, { useState, useRef } from 'react';
 import {
   View,
@@ -13,7 +12,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
 import * as Keychain from 'react-native-keychain';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { register } from '../../api/api';
+import { register, savePin } from '../../api/api'; // Added savePin import
 
 const PinCreationScreen = () => {
   const [pin, setPin] = useState(['', '', '', '']);
@@ -23,7 +22,7 @@ const PinCreationScreen = () => {
   const confirmPinInputRefs = useRef([]);
   const navigation = useNavigation();
   const route = useRoute();
-  const { phoneNumber } = route.params; // Receive phoneNumber from OTPScreen
+  const { phoneNumber } = route.params;
 
   const handlePinChange = (text, index) => {
     const newPin = [...pin];
@@ -112,12 +111,16 @@ const PinCreationScreen = () => {
     }
 
     try {
-      // Register user with phoneNumber and PIN
+      // Register user with phoneNumber (password is not needed since we'll use PIN)
       const registerResponse = await register(phoneNumber, enteredPin);
       const { token } = registerResponse.data;
 
       // Save JWT token
       await AsyncStorage.setItem('jwtToken', token);
+
+      // Save the PIN explicitly using /user/savePin
+      await savePin(enteredPin, enteredPin);
+
       await AsyncStorage.setItem('isSetupComplete', 'true');
 
       Alert.alert('Success', 'PIN created and user registered successfully');
