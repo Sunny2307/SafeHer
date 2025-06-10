@@ -2,13 +2,15 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import ReactNativeBiometrics from 'react-native-biometrics';
 import * as Keychain from 'react-native-keychain';
-import { useNavigation } from '@react-navigation/native';
-import { getUser, verifyPin } from '../../api/api'; // Added verifyPin import
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { verifyPin } from '../../api/api';
 
 const PinLoginScreen = () => {
   const [pin, setPin] = useState(['', '', '', '']);
   const pinInputRefs = useRef([]);
   const navigation = useNavigation();
+  const route = useRoute();
+  const { phoneNumber } = route.params; // Receive phoneNumber from SignUpLoginScreen
 
   useEffect(() => {
     checkBiometricAuth();
@@ -23,7 +25,6 @@ const PinLoginScreen = () => {
           authenticationPrompt: { title: 'Authenticate to access SafeHer' },
         });
         if (credentials) {
-          // Verify PIN with backend using verifyPin
           try {
             await verifyPin(credentials.password);
             Alert.alert('Success', 'Authenticated with biometrics!');
@@ -35,7 +36,11 @@ const PinLoginScreen = () => {
               navigation.navigate('SignUpLoginScreen');
             }
           }
+        } else {
+          Alert.alert('Info', 'Biometric authentication not set up. Please enter your PIN.');
         }
+      } else {
+        Alert.alert('Info', 'Biometric authentication not available. Please enter your PIN.');
       }
     } catch (error) {
       console.error('Biometric authentication error:', error);
@@ -60,15 +65,16 @@ const PinLoginScreen = () => {
     }
 
     try {
-      // Verify PIN with backend using verifyPin
+      // Verify PIN with backend
       await verifyPin(enteredPin);
+
       // Verify with Keychain for local consistency
       const credentials = await Keychain.getGenericPassword();
       if (credentials && credentials.password === enteredPin) {
         Alert.alert('Success', 'PIN verified successfully!');
         navigation.navigate('HomeScreen');
       } else {
-        Alert.alert('Error', 'Local PIN does not match. Please reset your PIN.');
+        Alert.alert('Error', 'Local PIN does not match. Please reset your PIN or re-register.');
       }
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Failed to verify PIN';
