@@ -10,7 +10,7 @@ const PinLoginScreen = () => {
   const pinInputRefs = useRef([]);
   const navigation = useNavigation();
   const route = useRoute();
-  const { phoneNumber } = route.params; // Receive phoneNumber from SignUpLoginScreen
+  const { phoneNumber } = route.params;
 
   useEffect(() => {
     checkBiometricAuth();
@@ -33,7 +33,7 @@ const PinLoginScreen = () => {
             const errorMessage = error.response?.data?.error || 'Failed to verify PIN with backend';
             Alert.alert('Error', errorMessage);
             if (error.response?.status === 401) {
-              navigation.navigate('SignUpLoginScreen');
+              navigation.navigate('SignUpLogin'); // Updated to match AppNavigator
             }
           }
         } else {
@@ -65,10 +65,7 @@ const PinLoginScreen = () => {
     }
 
     try {
-      // Verify PIN with backend
       await verifyPin(enteredPin);
-
-      // Verify with Keychain for local consistency
       const credentials = await Keychain.getGenericPassword();
       if (credentials && credentials.password === enteredPin) {
         Alert.alert('Success', 'PIN verified successfully!');
@@ -80,7 +77,7 @@ const PinLoginScreen = () => {
       const errorMessage = error.response?.data?.error || 'Failed to verify PIN';
       Alert.alert('Error', errorMessage);
       if (error.response?.status === 401) {
-        navigation.navigate('SignUpLoginScreen');
+        navigation.navigate('SignUpLogin'); // Updated to match AppNavigator
       }
     }
   };
