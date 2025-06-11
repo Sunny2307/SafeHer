@@ -1,10 +1,9 @@
-// SignUpLoginScreen.js
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { checkUser, sendOTP } from '../../api/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Utility function to add a timeout to a promise
 const withTimeout = (promise, timeoutMs) => {
   const timeout = new Promise((_, reject) => {
     setTimeout(() => {
@@ -52,6 +51,12 @@ const SignUpLoginScreen = () => {
       const { exists } = response.data;
 
       if (exists) {
+        // Check if a valid token exists
+        const token = await AsyncStorage.getItem('jwtToken');
+        console.log('Token before navigating to PinLoginScreen:', token);
+        if (!token) {
+          throw new Error('No authentication token found. Please log in again.');
+        }
         console.log('Navigating to PinLoginScreen');
         navigation.navigate('PinLoginScreen', { phoneNumber: cleanedPhoneNumber });
       } else {
@@ -87,17 +92,14 @@ const SignUpLoginScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.logoSection}>
           <Text style={styles.logoText}>SafeHer</Text>
         </View>
       </View>
 
-      {/* Title */}
       <Text style={styles.title}>Sign Up / Log in</Text>
 
-      {/* Input Section */}
       <Text style={styles.label}>Enter your mobile number</Text>
       <View style={styles.inputContainer}>
         <View style={styles.countryCodeContainer}>
@@ -112,7 +114,6 @@ const SignUpLoginScreen = () => {
         />
       </View>
 
-      {/* Continue Button */}
       <TouchableOpacity
         style={[styles.continueButton, isLoading && styles.disabledButton]}
         onPress={handleContinue}
@@ -121,19 +122,16 @@ const SignUpLoginScreen = () => {
         <Text style={styles.buttonText}>{isLoading ? 'Processing...' : 'Continue'}</Text>
       </TouchableOpacity>
 
-      {/* Separator */}
       <View style={styles.separatorContainer}>
         <View style={styles.line} />
         <Text style={styles.orText}>Or</Text>
         <View style={styles.line} />
       </View>
 
-      {/* Google Button */}
       <TouchableOpacity style={styles.googleButton}>
         <Text style={styles.googleButtonText}>Continue with Google</Text>
       </TouchableOpacity>
 
-      {/* Terms */}
       <Text style={styles.termsText}>
         By continuing, you agree that you have read and accepted our T&Cs and Privacy Policy
       </Text>
