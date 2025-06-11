@@ -1,8 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
 
 const Header = () => {
+  const navigation = useNavigation();
+
   return (
     <View style={styles.header}>
       <View style={styles.logoSection}>
@@ -14,8 +17,12 @@ const Header = () => {
         <Text style={styles.logoText}>SafeHer</Text>
       </View>
       <View style={styles.iconContainer}>
-        <Icon name="notifications-outline" size={24} color="#000" />
-        <Icon name="menu-outline" size={28} color="#000" />
+        <TouchableOpacity>
+          <Icon name="notifications-outline" size={24} color="#000" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('MenuScreen')}>
+          <Icon name="menu-outline" size={28} color="#000" />
+        </TouchableOpacity>
       </View>
     </View>
   );

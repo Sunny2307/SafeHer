@@ -23,7 +23,7 @@ const App = () => {
   }
 
   // Pass initial route depending on showPin value
-  return <AppNavigator initialRouteName={'HomeScreen'} />;
+  return <AppNavigator initialRouteName={'SignUpLogin'} />;
 };
 
 export default App;

@@ -10,9 +10,14 @@ const PinLoginScreen = () => {
   const pinInputRefs = useRef([]);
   const navigation = useNavigation();
   const route = useRoute();
-  const { phoneNumber } = route.params;
+  const { phoneNumber = '' } = route.params || {};
 
   useEffect(() => {
+    if (!phoneNumber) {
+      Alert.alert('Error', 'Phone number is missing. Please try again.');
+      navigation.navigate('SignUpLogin');
+      return;
+    }
     checkBiometricAuth();
   }, []);
 
@@ -33,7 +38,7 @@ const PinLoginScreen = () => {
             const errorMessage = error.response?.data?.error || 'Failed to verify PIN with backend';
             Alert.alert('Error', errorMessage);
             if (error.response?.status === 401) {
-              navigation.navigate('SignUpLogin'); // Updated to match AppNavigator
+              navigation.navigate('SignUpLogin');
             }
           }
         } else {
@@ -77,7 +82,7 @@ const PinLoginScreen = () => {
       const errorMessage = error.response?.data?.error || 'Failed to verify PIN';
       Alert.alert('Error', errorMessage);
       if (error.response?.status === 401) {
-        navigation.navigate('SignUpLogin'); // Updated to match AppNavigator
+        navigation.navigate('SignUpLogin');
       }
     }
   };
