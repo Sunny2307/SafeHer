@@ -1,8 +1,7 @@
-// routes/loginRoutes.js
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
-const { db } = require('../firebase'); // Firestore instance
+const { db } = require('../firebase');
 require('dotenv').config();
 
 const router = express.Router();
@@ -45,7 +44,7 @@ router.post('/send-otp', async (req, res) => {
     );
 
     if (response.data.Status === 'Success') {
-      const sessionId = response.data.Details; // Session ID for OTP verification
+      const sessionId = response.data.Details;
       res.status(200).json({ sessionId });
     } else {
       throw new Error('Failed to send OTP');
@@ -84,8 +83,8 @@ router.post('/verify-otp', async (req, res) => {
 router.post('/register', async (req, res) => {
   const { phoneNumber, password } = req.body;
 
-  if (!phoneNumber || !password) {
-    return res.status(400).json({ error: 'Phone number and password are required' });
+  if (!phoneNumber) {
+    return res.status(400).json({ error: 'Phone number is required' });
   }
 
   try {
@@ -96,10 +95,9 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'User already exists' });
     }
 
-    // In production, hash the password with bcrypt
     await userRef.set({
       phoneNumber,
-      password, // Replace with hashed password in production
+      password: password || null, // Password is optional since we're using PIN
       createdAt: new Date().toISOString(),
     });
 
@@ -130,8 +128,11 @@ router.post('/login', async (req, res) => {
 
     const user = userDoc.data();
 
-    // In production, compare hashed passwords with bcrypt
-    if (user.password !== password) {
+    // Check password or PIN as fallback
+    const isValidPassword = user.password && user.password === password;
+    const isValidPin = user.pin && user.pin === password;
+
+    if (!isValidPassword && !isValidPin) {
       return res.status(401).json({ error: 'Invalid phone number or password' });
     }
 
