@@ -12,7 +12,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
 import * as Keychain from 'react-native-keychain';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { register, savePin } from '../../api/api'; // Added savePin import
+import { register, savePin } from '../../api/api';
 
 const PinCreationScreen = () => {
   const [pin, setPin] = useState(['', '', '', '']);
@@ -111,14 +111,13 @@ const PinCreationScreen = () => {
     }
 
     try {
-      // Register user with phoneNumber (password is not needed since we'll use PIN)
       const registerResponse = await register(phoneNumber, enteredPin);
       const { token } = registerResponse.data;
-
-      // Save JWT token
+      console.log('Generated token:', token); // Debug: Log the token
       await AsyncStorage.setItem('jwtToken', token);
+      const savedToken = await AsyncStorage.getItem('jwtToken');
+      console.log('Saved token:', savedToken); // Debug: Confirm token was saved
 
-      // Save the PIN explicitly using /user/savePin
       await savePin(enteredPin, enteredPin);
 
       await AsyncStorage.setItem('isSetupComplete', 'true');
@@ -138,7 +137,7 @@ const PinCreationScreen = () => {
       const errorMessage = error.response?.data?.error || 'Failed to save PIN';
       Alert.alert('Error', errorMessage);
       if (error.response?.status === 401) {
-        navigation.navigate('SignUpLoginScreen');
+        navigation.navigate('SignUpLogin');
       }
     }
   };
