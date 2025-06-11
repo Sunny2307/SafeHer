@@ -12,6 +12,7 @@ import AddFriendScreen from '../screens/emergency/AddFriendScreen';
 import RecordScreen from '../screens/support/RecordScreen';
 import RecordingHistoryScreen from '../screens/support/RecordingHistoryScreen';
 import MenuScreen from '../screens/support/MenuScreen';
+import HelplineScreen from '../screens/emergency/HelplineScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -67,6 +68,11 @@ const AppNavigator = ({ initialRouteName }) => {
         <Stack.Screen
           name="MenuScreen"
           component={MenuScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="HelplineScreen"
+          component={HelplineScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

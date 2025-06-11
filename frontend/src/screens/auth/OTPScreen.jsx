@@ -1,15 +1,17 @@
-// OTPScreen.js
 import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Dimensions } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { verifyOTP, sendOTP } from '../../api/api';
+import Header from '../../components/Header'; // Adjust the path as needed
 
+const { width } = Dimensions.get('window');
 const OTPScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { phoneNumber, sessionId } = route.params;
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [focusedIndex, setFocusedIndex] = useState(null);
   const inputRefs = useRef([]);
 
   const handleOtpChange = (text, index) => {
@@ -19,6 +21,14 @@ const OTPScreen = () => {
     if (text && index < 5) {
       inputRefs.current[index + 1].focus();
     }
+  };
+
+  const handleFocus = (index) => {
+    setFocusedIndex(index);
+  };
+
+  const handleBlur = () => {
+    setFocusedIndex(null);
   };
 
   const handleVerify = async () => {
@@ -63,11 +73,7 @@ const OTPScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.logoSection}>
-          <Text style={styles.logoText}>SafeHer</Text>
-        </View>
-      </View>
+      <Header showBack={true} />
       <Text style={styles.title}>Enter OTP</Text>
       <Text style={styles.subtitle}>
         Enter the 6-digit code received on +91 {phoneNumber}
@@ -77,9 +83,14 @@ const OTPScreen = () => {
           <TextInput
             key={index}
             ref={(ref) => (inputRefs.current[index] = ref)}
-            style={styles.otpInput}
+            style={[
+              styles.otpInput,
+              focusedIndex === index && styles.otpInputFocused,
+            ]}
             value={digit}
             onChangeText={(text) => handleOtpChange(text, index)}
+            onFocus={() => handleFocus(index)}
+            onBlur={handleBlur}
             keyboardType="numeric"
             maxLength={1}
             textAlign="center"
@@ -102,74 +113,79 @@ const OTPScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 25,
+    paddingHorizontal: 20,
     paddingVertical: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#F5F7FA',
     justifyContent: 'flex-start',
   },
-  header: {
-    marginBottom: 25,
-  },
-  logoSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logoText: {
-    fontSize: 35,
-    fontWeight: 'bold',
-    color: '#FF69B4',
-    marginTop: -30,
-  },
   title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    marginBottom: 16,
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: 12,
     textAlign: 'center',
-    color: '#333',
+    color: '#2A2A2A',
+    letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: '#5A5A5A',
     textAlign: 'center',
-    marginBottom: 32,
-    fontWeight: '500',
+    marginBottom: 30,
+    fontWeight: '400',
+    fontStyle: 'italic',
   },
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 40,
-    paddingHorizontal: 20,
+    paddingHorizontal: 10,
   },
   otpInput: {
-    width: 56,
-    height: 56,
-    borderWidth: 1,
-    borderColor: '#ccc',
+    width: (width - 60) / 6 - 10,
+    height: 50,
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
     borderRadius: 12,
     marginHorizontal: 5,
-    fontSize: 24,
+    fontSize: 22,
     textAlign: 'center',
-    backgroundColor: '#f9f9f9',
-    color: '#333',
+    backgroundColor: '#FFFFFF',
+    color: '#2A2A2A',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  otpInputFocused: {
+    borderColor: '#FF69B4', // Matching the header's logo color
+    borderWidth: 2,
   },
   verifyButton: {
-    backgroundColor: '#4B1C46',
-    paddingVertical: 16,
-    borderRadius: 28,
+    backgroundColor: '#FF69B4', // Matching the header's logo color
+    paddingVertical: 14,
+    borderRadius: 30,
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
   },
   buttonText: {
-    color: '#fff',
+    color: '#FFF',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   resendText: {
     fontSize: 16,
-    color: '#4B1C46',
+    color: '#FF69B4', // Matching the header's logo color
     textAlign: 'center',
     textDecorationLine: 'underline',
-    marginVertical: 16,
+    fontWeight: '500',
+    marginVertical: 10,
   },
 });
 

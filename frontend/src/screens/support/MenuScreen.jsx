@@ -73,7 +73,7 @@ const MenuScreen = () => {
           </View>
           <View>
             <Text style={styles.userName}>Sunny</Text>
-            <Text style={styles.phoneNumber}>+91 7434929842</Text>
+            <Text style={styles.phoneNumber}>+91 9586591497</Text>
           </View>
         </View>
         <TouchableOpacity style={styles.editIcon}>
