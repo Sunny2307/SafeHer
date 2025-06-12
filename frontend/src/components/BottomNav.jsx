@@ -11,6 +11,10 @@ const BottomNav = () => {
       navigation.navigate('RecordScreen');
     } else if (label === 'Track Me') {
       navigation.navigate('HomeScreen');
+    } else if (label === 'Fake Call') {
+      navigation.navigate('FakeCallScreen');
+    } else if (label === 'Help') {
+      navigation.navigate('HelplineScreen');
     } else {
       alert(`${label} feature coming soon!`);
     }
