@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, Modal } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Header from '../../components/Header'; // Adjust the path as needed
@@ -9,11 +9,10 @@ const FakeCallScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   
-  // State to store caller details
   const [callerName, setCallerName] = useState('');
   const [callerNumber, setCallerNumber] = useState('');
+  const [showNotification, setShowNotification] = useState(false);
 
-  // Update state when new params are received
   useEffect(() => {
     if (route.params?.callerName) {
       setCallerName(route.params.callerName);
@@ -24,8 +23,16 @@ const FakeCallScreen = () => {
   }, [route.params]);
 
   const handleGetCall = () => {
-    // Placeholder for fake call functionality
-    alert('Initiating a fake call...');
+    setShowNotification(true);
+  };
+
+  const handleAcceptCall = () => {
+    setShowNotification(false);
+    navigation.navigate('IncomingCallScreen', { callerName });
+  };
+
+  const handleDeclineCall = () => {
+    setShowNotification(false);
   };
 
   const handleSetCallerDetails = () => {
@@ -62,6 +69,39 @@ const FakeCallScreen = () => {
           <Icon name="pencil-outline" size={20} color="#FF69B4" style={styles.editIcon} />
         </TouchableOpacity>
       </View>
+
+      {/* Notification Modal */}
+      <Modal
+        transparent={true}
+        visible={showNotification}
+        animationType="slide"
+        onRequestClose={() => setShowNotification(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.notificationContainer}>
+            <Text style={styles.notificationText}>
+              Incoming Call from {callerName || 'Unknown Caller'}
+            </Text>
+            <View style={styles.notificationButtons}>
+              <TouchableOpacity
+                style={[styles.notificationButton, styles.acceptButton]}
+                onPress={handleAcceptCall}
+              >
+                <Icon name="call" size={24} color="#FFF" />
+                <Text style={styles.notificationButtonText}>Accept</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.notificationButton, styles.declineButton]}
+                onPress={handleDeclineCall}
+              >
+                <Icon name="call-outline" size={24} color="#FFF" />
+                <Text style={styles.notificationButtonText}>Decline</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={styles.getCallButton}
@@ -183,6 +223,52 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     letterSpacing: 0.5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationContainer: {
+    width: '80%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 15,
+    padding: 20,
+    alignItems: 'center',
+    elevation: 5,
+  },
+  notificationText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2A2A2A',
+    marginBottom: 20,
+  },
+  notificationButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  notificationButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginHorizontal: 5,
+  },
+  acceptButton: {
+    backgroundColor: '#4CAF50',
+  },
+  declineButton: {
+    backgroundColor: '#F44336',
+  },
+  notificationButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 5,
   },
 });
 

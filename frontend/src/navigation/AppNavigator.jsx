@@ -15,6 +15,7 @@ import MenuScreen from '../screens/support/MenuScreen';
 import HelplineScreen from '../screens/emergency/HelplineScreen';
 import FakeCallScreen from '../screens/support/FakeCallScreen';
 import CallerDetailsScreen from '../screens/support/CallerDetailsScreen';
+import IncomingCallScreen from '../screens/support/IncomingCallScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -85,6 +86,11 @@ const AppNavigator = ({ initialRouteName }) => {
         <Stack.Screen
           name="CallerDetailsScreen"
           component={CallerDetailsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="IncomingCallScreen"
+          component={IncomingCallScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>
