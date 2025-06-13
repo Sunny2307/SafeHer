@@ -1,28 +1,25 @@
-// api/api.js
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'http://192.168.56.102:3000'; // Replace with your machine’s IP address
-
 const api = axios.create({
-  baseURL: BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
+  baseURL: 'http://localhost:3000',
+  timeout: 10000,
+});
+
+api.interceptors.request.use(
+  async (config) => {
+    const token = await AsyncStorage.getItem('jwtToken');
+    console.log('Token in request:', token);
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
   },
-});
-
-// Add an interceptor to include the JWT in every request
-api.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('jwtToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  (error) => {
+    return Promise.reject(error);
   }
-  return config;
-}, (error) => {
-  return Promise.reject(error);
-});
+);
 
-// Add an interceptor to handle 401 errors (token expiration)
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -34,31 +31,40 @@ api.interceptors.response.use(
   }
 );
 
-export const login = (phoneNumber, password) =>
-  api.post('/api/login', { phoneNumber, password });
+export const checkUser = async (phoneNumber) => {
+  return await api.post('/api/checkUser', { phoneNumber });
+};
 
-export const register = (phoneNumber, password) =>
-  api.post('/api/register', { phoneNumber, password });
+export const sendOTP = async (phoneNumber) => {
+  return await api.post('/api/send-otp', { phoneNumber });
+};
 
-export const saveName = (name) =>
-  api.post('/user/saveName', { name });
+export const verifyOTP = async (sessionId, otp) => {
+  return await api.post('/api/verify-otp', { sessionId, otp });
+};
 
-export const savePin = (pin, confirmPin) =>
-  api.post('/user/savePin', { pin, confirmPin });
+export const register = async (phoneNumber, password) => {
+  return await api.post('/api/register', { phoneNumber, password });
+};
 
-export const getUser = () =>
-  api.get('/auth/getUser');
+export const login = async (phoneNumber, password) => {
+  return await api.post('/api/login', { phoneNumber, password });
+};
 
-export const verifyPin = (pin) =>
-  api.post('/user/verifyPin', { pin });
+export const savePin = async (pin, confirmPin) => {
+  return await api.post('/user/savePin', { pin, confirmPin });
+};
 
-export const checkUser = (phoneNumber) =>
-  api.post('/api/checkUser', { phoneNumber });
+export const verifyPin = async (pin) => {
+  return await api.post('/user/verifyPin', { pin });
+};
 
-export const sendOTP = (phoneNumber) =>
-  api.post('/api/send-otp', { phoneNumber });
+export const addFriend = async (phoneNumber, isSOS) => {
+  return await api.post('/user/addFriend', { phoneNumber, isSOS });
+};
 
-export const verifyOTP = (sessionId, otp) =>
-  api.post('/api/verify-otp', { sessionId, otp });
+export const getFriends = async () => {
+  return await api.get('/user/getFriends');
+};
 
 export default api;
