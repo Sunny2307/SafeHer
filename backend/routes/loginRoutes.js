@@ -99,6 +99,7 @@ router.post('/register', async (req, res) => {
       phoneNumber,
       password: password || null, // Password is optional since we're using PIN
       createdAt: new Date().toISOString(),
+      friends: [], // Initialize the friends array
     });
 
     const token = jwt.sign(
