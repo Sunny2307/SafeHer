@@ -8,14 +8,12 @@ import {
   PermissionsAndroid,
   Platform,
   Alert,
-  Modal,
-  TextInput,
-  Linking,
+  Linking, // Keep Linking for WhatsApp integration
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import { check, PERMISSIONS, RESULTS } from 'react-native-permissions';
-import { getUser } from '../api/api';
+import { getUser, getFriends } from '../api/api'; // Added getFriends import
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import Header from '../components/Header';
@@ -25,8 +23,6 @@ const HomeScreen = () => {
   const [location, setLocation] = useState(null);
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [debugMessage, setDebugMessage] = useState('Initializing...');
-  const [modalVisible, setModalVisible] = useState(false);
-  const [mobileNumber, setMobileNumber] = useState('');
   const [userData, setUserData] = useState(null);
   const watchIdRef = useRef(null);
   const navigation = useNavigation();
@@ -135,33 +131,46 @@ const HomeScreen = () => {
 
   const handleAddFriend = () => navigation.navigate('AddFriendScreen');
 
-  const handleTrackMe = () => {
+  const handleTrackMe = async () => {
     if (!location) {
       Alert.alert('Location Unavailable', 'Wait until location is fetched.');
       return;
     }
-    setModalVisible(true);
-  };
-
-  const handleShareLocation = async () => {
-    const mobileRegex = /^[6-9]\d{9}$/;
-    if (!mobileRegex.test(mobileNumber)) {
-      Alert.alert('Invalid Number', 'Enter valid 10-digit Indian mobile number.');
-      return;
-    }
-
-    const formattedNumber = mobileNumber.startsWith('+') ? mobileNumber : `+91${mobileNumber}`;
-    const mapUrl = `https://www.google.com/maps?q=${location.latitude},${location.longitude}`;
-    const message = `Here is my live location: ${mapUrl}`;
-    const whatsappUrl = `https://wa.me/${formattedNumber}?text=${encodeURIComponent(message)}`;
 
     try {
-      await Linking.openURL(whatsappUrl);
-      setModalVisible(false);
-      setMobileNumber('');
+      // Fetch the list of friends
+      const response = await getFriends();
+      const friends = response.data.friends || [];
+      if (friends.length === 0) {
+        throw new Error('No friends added. Please add a friend first.');
+      }
+
+      // Prioritize SOS contact; if none, use the first friend
+      let friendNumber = null;
+      const sosContact = friends.find(friend => friend.isSOS);
+      if (sosContact) {
+        friendNumber = sosContact.phoneNumber;
+      } else {
+        friendNumber = friends[0].phoneNumber;
+      }
+
+      // Create a Google Maps link with the user's location
+      const mapUrl = `https://www.google.com/maps?q=${location.latitude},${location.longitude}`;
+      const message = `Here is my live location: ${mapUrl}`;
+
+      // Create WhatsApp URL
+      const whatsappUrl = `https://wa.me/+91${friendNumber}?text=${encodeURIComponent(message)}`;
+
+      // Open WhatsApp
+      const supported = await Linking.canOpenURL(whatsappUrl);
+      if (supported) {
+        await Linking.openURL(whatsappUrl);
+      } else {
+        throw new Error('WhatsApp is not installed on this device.');
+      }
     } catch (error) {
-      console.error('WhatsApp Error:', error);
-      Alert.alert('Error', 'Unable to open WhatsApp. Make sure it is installed.');
+      const errorMessage = error.message || 'Failed to share location';
+      Alert.alert('Error', errorMessage);
     }
   };
 
@@ -170,7 +179,7 @@ const HomeScreen = () => {
       {/* Header */}
       <Header />
 
-      {/* Profile Section
+      {/* Profile Section */}
       {userData ? (
         <View style={styles.profileSection}>
           <Text style={styles.profileText}>Welcome, {userData.name || 'User'}</Text>
@@ -181,10 +190,10 @@ const HomeScreen = () => {
         </View>
       ) : (
         <Text>Loading profile...</Text>
-      )} */}
+      )}
 
       {/* Title */}
-      <Text style={styles.pageTitle}>Track me</Text>
+      <Text style={states.pageTitle}>Track me</Text>
       <Text style={styles.subTitle}>Share live location with your friends</Text>
 
       {/* Add Friend */}
@@ -219,35 +228,6 @@ const HomeScreen = () => {
           <Text style={styles.trackButtonText}>Track me</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Modal */}
-      <Modal visible={modalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Share Your Location</Text>
-            <Text style={styles.modalSubtitle}>Enter mobile number:</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="10-digit number"
-              keyboardType="phone-pad"
-              value={mobileNumber}
-              onChangeText={setMobileNumber}
-              maxLength={10}
-            />
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => {
-                setModalVisible(false);
-                setMobileNumber('');
-              }}>
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.shareButton]} onPress={handleShareLocation}>
-                <Text style={styles.modalButtonText}>Share</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* Bottom Navigation */}
       <BottomNav />
@@ -324,64 +304,6 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   trackButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    width: '80%',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 20,
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 10,
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: '#555',
-    textAlign: 'center',
-    marginBottom: 15,
-  },
-  input: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 20,
-    fontSize: 16,
-    color: '#000',
-  },
-  modalButtonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  modalButton: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginHorizontal: 5,
-  },
-  cancelButton: {
-    backgroundColor: '#ccc',
-  },
-  shareButton: {
-    backgroundColor: '#FF69B4',
-  },
-  modalButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
 });
 
 export default HomeScreen;
