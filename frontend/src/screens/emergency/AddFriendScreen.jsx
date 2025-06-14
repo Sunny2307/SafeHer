@@ -15,40 +15,20 @@ import {
 import CheckBox from '@react-native-community/checkbox';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { selectContactPhone } from 'react-native-select-contact';
-import { addFriend } from '../api/api'; // Import the addFriend API function
 
 const AddFriendScreen = ({ navigation }) => {
   const [countryCode, setCountryCode] = useState('IN');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isSOS, setIsSOS] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
 
-  const handleAddContact = async () => {
-    if (isLoading) return;
-
+  const handleAddContact = () => {
     if (phoneNumber.length !== 10) {
       Alert.alert('Invalid Number', 'Please enter a valid 10-digit phone number.');
       return;
     }
-
-    setIsLoading(true);
-    try {
-      await addFriend(phoneNumber, isSOS);
-      Alert.alert('Success', 'Friend added successfully!', [
-        { text: 'OK', onPress: () => {
-          setPhoneNumber('');
-          navigation.goBack();
-        }},
-      ]);
-    } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Failed to add friend';
-      Alert.alert('Error', errorMessage);
-      if (error.response?.status === 401) {
-        navigation.navigate('SignUpLogin');
-      }
-    } finally {
-      setIsLoading(false);
-    }
+    Alert.alert('Success', 'Contact saved successfully!', [
+      { text: 'OK', onPress: () => setPhoneNumber('') },
+    ]);
   };
 
   const requestContactsPermission = async () => {
@@ -88,7 +68,7 @@ const AddFriendScreen = ({ navigation }) => {
         if (number.startsWith('+91')) number = number.slice(3);
         if (number.length === 10) {
           setPhoneNumber(number);
-          Alert.alert('Contact Selected', `${selection.contact.name || 'Contact'} has been selected.`);
+          Alert.alert('Contact Saved', `${selection.contact.name || 'Contact'} has been selected and saved.`);
         } else {
           Alert.alert('Invalid Number', 'The selected number is not a valid 10-digit Indian number.');
         }
@@ -164,13 +144,11 @@ const AddFriendScreen = ({ navigation }) => {
           </View>
 
           <TouchableOpacity
-            style={[styles.button, (phoneNumber.length !== 10 || isLoading) && { opacity: 0.5 }]}
-            disabled={phoneNumber.length !== 10 || isLoading}
+            style={[styles.button, phoneNumber.length !== 10 && { opacity: 0.5 }]}
+            disabled={phoneNumber.length !== 10}
             onPress={handleAddContact}
           >
-            <Text style={styles.buttonText}>
-              {isLoading ? 'Adding...' : 'Add Contact'}
-            </Text>
+            <Text style={styles.buttonText}>Add SOS Contact</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
