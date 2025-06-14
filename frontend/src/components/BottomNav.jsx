@@ -1,10 +1,50 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
+import { PermissionsAndroid } from 'react-native';
+import RNImmediatePhoneCall from 'react-native-immediate-phone-call';
 
 const BottomNav = () => {
   const navigation = useNavigation();
+  const emergencyContact = '9537570585'; // Hardcoded emergency contact number
+
+  const requestCallPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CALL_PHONE,
+          {
+            title: 'Emergency Call Permission',
+            message: 'SafeHer needs permission to make an emergency call.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn('Call Permission Error:', err);
+        return false;
+      }
+    }
+    return true; // iOS doesn't require explicit call permission for direct calls
+  };
+
+  const handleEmergencyCall = async () => {
+    const hasPermission = await requestCallPermission();
+    if (!hasPermission) {
+      Alert.alert('Permission Denied', 'Phone call permission is required for the SOS feature.');
+      return;
+    }
+
+    try {
+      RNImmediatePhoneCall.immediatePhoneCall(emergencyContact);
+    } catch (error) {
+      console.error('Direct Call Error:', error);
+      Alert.alert('Error', 'Failed to initiate emergency call. Please try again.');
+    }
+  };
 
   const handleBottomNav = (label) => {
     if (label === 'Record') {
@@ -15,6 +55,8 @@ const BottomNav = () => {
       navigation.navigate('FakeCallScreen');
     } else if (label === 'Help') {
       navigation.navigate('HelplineScreen');
+    } else if (label === 'SOS') {
+      handleEmergencyCall();
     } else {
       alert(`${label} feature coming soon!`);
     }
