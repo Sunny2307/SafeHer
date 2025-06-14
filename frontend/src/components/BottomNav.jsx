@@ -55,8 +55,8 @@ const BottomNav = () => {
 
   useEffect(() => {
     const eventEmitter = new NativeEventEmitter(PowerButton);
-    const subscription = eventEmitter.addListener('PowerButtonTriplePress', () => {
-      console.log('Power button triple-pressed, initiating emergency call');
+    const subscription = eventEmitter.addListener('PowerButtonDoublePress', () => {
+      console.log('Power button double-pressed, initiating emergency call');
       handleEmergencyCall();
     });
 

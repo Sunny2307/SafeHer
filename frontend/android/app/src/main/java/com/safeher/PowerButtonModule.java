@@ -11,9 +11,9 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 
 public class PowerButtonModule extends ReactContextBaseJavaModule {
-    private static final String POWER_BUTTON_EVENT = "PowerButtonTriplePress";
-    private static final long TIME_WINDOW_MS = 2000; // 2 seconds window for 3 presses
-    private long[] pressTimestamps = new long[3];
+    private static final String POWER_BUTTON_EVENT = "PowerButtonDoublePress";
+    private static final long TIME_WINDOW_MS = 2000; // 2 seconds window for 2 presses
+    private long[] pressTimestamps = new long[2];
     private int pressCount = 0;
     private BroadcastReceiver powerButtonReceiver;
 
@@ -32,12 +32,13 @@ public class PowerButtonModule extends ReactContextBaseJavaModule {
             @Override
             public void onReceive(Context context, Intent intent) {
                 long currentTime = SystemClock.elapsedRealtime();
-                pressTimestamps[pressCount % 3] = currentTime;
+                pressTimestamps[pressCount % 2] = currentTime;
                 pressCount++;
 
-                if (pressCount >= 3) {
-                    long timeDiff = pressTimestamps[(pressCount - 1) % 3] - pressTimestamps[(pressCount - 3) % 3];
+                if (pressCount >= 2) {
+                    long timeDiff = pressTimestamps[(pressCount - 1) % 2] - pressTimestamps[(pressCount - 2) % 2];
                     if (timeDiff <= TIME_WINDOW_MS) {
+                        // Emit event to JavaScript
                         getReactApplicationContext()
                             .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
                             .emit(POWER_BUTTON_EVENT, null);
