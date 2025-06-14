@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, Alert } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, Alert, NativeEventEmitter, NativeModules } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { PermissionsAndroid } from 'react-native';
@@ -8,6 +8,7 @@ import RNImmediatePhoneCall from 'react-native-immediate-phone-call';
 const BottomNav = () => {
   const navigation = useNavigation();
   const emergencyContact = '9537570585'; // Hardcoded emergency contact number
+  const { PowerButton } = NativeModules;
 
   const requestCallPermission = async () => {
     if (Platform.OS === 'android') {
@@ -28,7 +29,7 @@ const BottomNav = () => {
         return false;
       }
     }
-    return true; // iOS doesn't require explicit call permission for direct calls
+    return true; // iOS doesn't require explicit call permission
   };
 
   const handleEmergencyCall = async () => {
@@ -39,12 +40,30 @@ const BottomNav = () => {
     }
 
     try {
-      RNImmediatePhoneCall.immediatePhoneCall(emergencyContact);
+      if (RNImmediatePhoneCall) {
+        console.log('Attempting direct call with RNImmediatePhoneCall');
+        RNImmediatePhoneCall.immediatePhoneCall(emergencyContact);
+      } else {
+        console.warn('RNImmediatePhoneCall is null or undefined');
+        Alert.alert('Error', 'Direct call module not available.');
+      }
     } catch (error) {
       console.error('Direct Call Error:', error);
       Alert.alert('Error', 'Failed to initiate emergency call. Please try again.');
     }
   };
+
+  useEffect(() => {
+    const eventEmitter = new NativeEventEmitter(PowerButton);
+    const subscription = eventEmitter.addListener('PowerButtonTriplePress', () => {
+      console.log('Power button triple-pressed, initiating emergency call');
+      handleEmergencyCall();
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   const handleBottomNav = (label) => {
     if (label === 'Record') {
