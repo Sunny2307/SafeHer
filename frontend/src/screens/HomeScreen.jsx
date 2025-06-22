@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
-import { check, PERMISSIONS, RESULTS } from 'react-native-permissions';
+import { check, PERMISSIONS, request, RESULTS } from 'react-native-permissions'; // Added RESULTS to import
 import { getUser } from '../api/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
@@ -33,73 +33,72 @@ const HomeScreen = () => {
 
   const requestLocationPermission = async () => {
     try {
+      let permissionStatus;
       if (Platform.OS === 'android') {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          {
-            title: 'Location Permission Required',
-            message: 'SafeHer needs access to your location.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          },
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
+        permissionStatus = await request(PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION);
+      } else if (Platform.OS === 'ios') {
+        permissionStatus = await request(PERMISSIONS.IOS.LOCATION_WHEN_IN_USE);
       }
-      return true;
+      return permissionStatus === RESULTS.GRANTED;
     } catch (err) {
       console.warn('Permission Error:', err);
+      setDebugMessage('Permission error');
       return false;
     }
   };
 
   const startLiveLocationTracking = async () => {
+    setDebugMessage('Requesting location permission...');
     const hasPermission = await requestLocationPermission();
     if (!hasPermission) {
       Alert.alert('Permission Denied', 'Location permission is required to use this feature.');
+      setDebugMessage('Location permission denied');
       setLoadingLocation(false);
       return;
     }
 
-    const permissionStatus = await PermissionsAndroid.check(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-    );
-    if (!permissionStatus) {
-      Alert.alert('Permission Issue', 'Failed to verify location permission.');
-      setLoadingLocation(false);
-      return;
-    }
-
-    const locationServiceStatus = await check(
-      Platform.OS === 'ios'
-        ? PERMISSIONS.IOS.LOCATION_WHEN_IN_USE
-        : PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
-    );
-    if (locationServiceStatus !== RESULTS.GRANTED) {
-      Alert.alert('Location Services Disabled', 'Please enable location services.');
-      setLoadingLocation(false);
-      return;
-    }
-
-    watchIdRef.current = Geolocation.watchPosition(
+    setDebugMessage('Starting location fetch...');
+    // First, try to get the current position
+    Geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
         setLocation({ latitude, longitude });
-        setDebugMessage(`Live: ${latitude}, ${longitude}`);
+        setDebugMessage(`Initial: ${latitude}, ${longitude}`);
         setLoadingLocation(false);
+
+        // Then, set up continuous tracking
+        watchIdRef.current = Geolocation.watchPosition(
+          (newPosition) => {
+            const { latitude, longitude } = newPosition.coords;
+            setLocation({ latitude, longitude });
+            setDebugMessage(`Live: ${latitude}, ${longitude}`);
+          },
+          (error) => {
+            console.error('Watch Error:', error);
+            setDebugMessage(`Watch error: ${error.message}`);
+            Alert.alert('Location Tracking Error', error.message);
+          },
+          {
+            enableHighAccuracy: true,
+            distanceFilter: 10,
+            interval: 5000,
+            fastestInterval: 2000,
+            showsBackgroundLocationIndicator: true,
+            timeout: 20000,
+            maximumAge: 1000,
+          },
+        );
       },
       (error) => {
-        console.error('Location Error:', error);
-        setDebugMessage(`Error: ${error.message}`);
-        Alert.alert('Location Error', error.message);
+        console.error('Initial Location Error:', error);
+        setDebugMessage(`Initial error: ${error.message}`);
+        Alert.alert('Location Error', 'Unable to fetch initial location. Please ensure location services are enabled.');
         setLoadingLocation(false);
       },
       {
         enableHighAccuracy: true,
-        distanceFilter: 10,
-        interval: 5000,
-        fastestInterval: 2000,
-        showsBackgroundLocationIndicator: true,
+        timeout: 20000,
+        maximumAge: 1000,
       },
     );
   };
@@ -137,7 +136,7 @@ const HomeScreen = () => {
 
   const handleTrackMe = () => {
     if (!location) {
-      Alert.alert('Location Unavailable', 'Wait until location is fetched.');
+      Alert.alert('Location Unavailable', 'Please wait until your location is fetched.');
       return;
     }
     setModalVisible(true);
@@ -146,7 +145,7 @@ const HomeScreen = () => {
   const handleShareLocation = async () => {
     const mobileRegex = /^[6-9]\d{9}$/;
     if (!mobileRegex.test(mobileNumber)) {
-      Alert.alert('Invalid Number', 'Enter valid 10-digit Indian mobile number.');
+      Alert.alert('Invalid Number', 'Please enter a valid 10-digit Indian mobile number.');
       return;
     }
 
@@ -161,7 +160,7 @@ const HomeScreen = () => {
       setMobileNumber('');
     } catch (error) {
       console.error('WhatsApp Error:', error);
-      Alert.alert('Error', 'Unable to open WhatsApp. Make sure it is installed.');
+      Alert.alert('Error', 'Unable to open WhatsApp. Please make sure it is installed.');
     }
   };
 

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, Alert, NativeEventEmitter, NativeModules } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, Alert, NativeModules } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { PermissionsAndroid } from 'react-native';
@@ -54,14 +54,22 @@ const BottomNav = () => {
   };
 
   useEffect(() => {
-    const eventEmitter = new NativeEventEmitter(PowerButton);
-    const subscription = eventEmitter.addListener('PowerButtonDoublePress', () => {
-      console.log('Power button double-pressed, initiating emergency call');
-      handleEmergencyCall();
-    });
+    let subscription = null;
+    if (PowerButton && typeof PowerButton.addListener === 'function') {
+      // Only create NativeEventEmitter if PowerButton is valid
+      const eventEmitter = new (require('react-native').NativeEventEmitter)(PowerButton);
+      subscription = eventEmitter.addListener('PowerButtonDoublePress', () => {
+        console.log('Power button double-pressed, initiating emergency call');
+        handleEmergencyCall();
+      });
+    } else {
+      console.warn('PowerButton native module is not properly set up or unavailable');
+    }
 
     return () => {
-      subscription.remove();
+      if (subscription) {
+        subscription.remove();
+      }
     };
   }, []);
 
