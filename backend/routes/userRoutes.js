@@ -1,7 +1,7 @@
 const express = require('express');
 const { authenticate } = require('./authRoutes');
 const { db } = require('../firebase');
-const admin = require('firebase-admin'); // Add this line to import admin
+const admin = require('firebase-admin');
 
 const router = express.Router();
 
@@ -20,7 +20,7 @@ router.post('/saveName', authenticate, async (req, res) => {
     await db.collection('users').doc(req.user.phoneNumber).set(
       {
         name,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(), // This should now work
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true }
     );
@@ -50,7 +50,7 @@ router.post('/savePin', authenticate, async (req, res) => {
     await db.collection('users').doc(req.user.phoneNumber).set(
       {
         pin,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(), // Ensure this works too
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true }
     );
@@ -61,7 +61,6 @@ router.post('/savePin', authenticate, async (req, res) => {
   }
 });
 
-// In userRoutes.js
 router.post('/verifyPin', authenticate, async (req, res) => {
   const { pin } = req.body;
 
@@ -93,4 +92,49 @@ router.post('/verifyPin', authenticate, async (req, res) => {
   }
 });
 
-module.exports = router;
+// Add a friend
+router.post('/addFriend', authenticate, async (req, res) => {
+  const { phoneNumber, isSOS } = req.body;
+
+  if (!phoneNumber || phoneNumber.length !== 10 || isNaN(phoneNumber)) {
+    return res.status(400).json({ error: 'Invalid phone number. Must be a 10-digit number' });
+  }
+
+  try {
+    const userDoc = await db.collection('users').doc(req.user.phoneNumber).get();
+    if (!userDoc.exists) return res.status(404).json({ error: 'User not found' });
+
+    const userData = userDoc.data();
+    const friends = userData.friends || [];
+
+    if (friends.some(friend => friend.phoneNumber === phoneNumber)) {
+      return res.status(400).json({ error: 'Friend already added' });
+    }
+
+    friends.push({ phoneNumber, isSOS: !!isSOS });
+    await db.collection('users').doc(req.user.phoneNumber).set({ friends }, { merge: true });
+
+    res.json({ message: 'Friend added successfully' });
+  } catch (error) {
+    console.error('Error adding friend:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get friends
+router.get('/getFriends', authenticate, async (req, res) => {
+  try {
+    const userDoc = await db.collection('users').doc(req.user.phoneNumber).get();
+    if (!userDoc.exists) return res.status(404).json({ error: 'User not found' });
+
+    const userData = userDoc.data();
+    const friends = userData.friends || [];
+
+    res.json({ friends });
+  } catch (error) {
+    console.error('Error fetching friends:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+module.exports = { router };
