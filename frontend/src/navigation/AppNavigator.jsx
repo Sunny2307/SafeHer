@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import SignUpLoginScreen from '../../src/screens/auth/SignUpLoginScreen';
@@ -17,11 +17,13 @@ import FakeCallScreen from '../screens/support/FakeCallScreen';
 import CallerDetailsScreen from '../screens/support/CallerDetailsScreen';
 import IncomingCallScreen from '../screens/support/IncomingCallScreen';
 
+export const navigationRef = createNavigationContainerRef();
+
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = ({ initialRouteName }) => {
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator initialRouteName={initialRouteName || 'SignUpLogin'}>
         <Stack.Screen
           name="SignUpLogin"
