@@ -1,24 +1,24 @@
-// server.js
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
-
 const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/userRoutes');
 const loginRoutes = require('./routes/loginRoutes');
+const userRoutes = require('./routes/userRoutes');
+require('dotenv').config();
 
 const app = express();
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Define routes
-app.use('/api', loginRoutes);      // /api/checkUser, /api/register, /api/login, /api/send-otp, /api/verify-otp
+// Routes
 app.use('/auth', authRoutes.router);
-app.use('/user', userRoutes);
+app.use('/api', loginRoutes.router);
+app.use('/user', userRoutes.router);
 
+// Start server
 const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+const HOST = '192.168.222.18';
+app.listen(PORT, HOST, () => {
+  console.log(`Server running on http://${HOST}:${PORT}`);
 });
