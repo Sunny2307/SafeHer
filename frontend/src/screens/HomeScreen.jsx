@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
-import { check, PERMISSIONS, request, RESULTS } from 'react-native-permissions'; // Added RESULTS to import
+import { check, PERMISSIONS, request, RESULTS } from 'react-native-permissions';
 import { getUser } from '../api/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
@@ -58,7 +58,6 @@ const HomeScreen = () => {
     }
 
     setDebugMessage('Starting location fetch...');
-    // First, try to get the current position
     Geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
@@ -66,7 +65,6 @@ const HomeScreen = () => {
         setDebugMessage(`Initial: ${latitude}, ${longitude}`);
         setLoadingLocation(false);
 
-        // Then, set up continuous tracking
         watchIdRef.current = Geolocation.watchPosition(
           (newPosition) => {
             const { latitude, longitude } = newPosition.coords;
@@ -111,14 +109,14 @@ const HomeScreen = () => {
       const errorMessage = error.response?.data?.error || 'Failed to fetch user data';
       Alert.alert('Error', errorMessage);
       if (error.response?.status === 401) {
-        navigation.navigate('SignUpLoginScreen');
+        navigation.navigate('SignUpLogin');
       }
     }
   };
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem('jwtToken');
-    navigation.navigate('SignUpLoginScreen');
+    navigation.navigate('SignUpLogin');
   };
 
   useEffect(() => {
@@ -166,27 +164,11 @@ const HomeScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <Header />
 
-      {/* Profile Section
-      {userData ? (
-        <View style={styles.profileSection}>
-          <Text style={styles.profileText}>Welcome, {userData.name || 'User'}</Text>
-          <Text style={styles.profileText}>Phone: {userData.phoneNumber}</Text>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutButtonText}>Logout</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <Text>Loading profile...</Text>
-      )} */}
-
-      {/* Title */}
       <Text style={styles.pageTitle}>Track me</Text>
       <Text style={styles.subTitle}>Share live location with your friends</Text>
 
-      {/* Add Friend */}
       <View style={styles.friendSection}>
         <Text style={styles.addFriendText}>Add a friend to use SOS and Track me</Text>
         <TouchableOpacity style={styles.addButton} onPress={handleAddFriend}>
@@ -194,7 +176,6 @@ const HomeScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Map */}
       <View style={styles.mapContainer}>
         {location && !loadingLocation ? (
           <MapView
@@ -219,7 +200,6 @@ const HomeScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -248,7 +228,6 @@ const HomeScreen = () => {
         </View>
       </Modal>
 
-      {/* Bottom Navigation */}
       <BottomNav />
     </SafeAreaView>
   );
@@ -256,31 +235,6 @@ const HomeScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  profileSection: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#f8f8f8',
-    marginHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 10,
-  },
-  profileText: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 5,
-  },
-  logoutButton: {
-    backgroundColor: '#FF4B5C',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    alignSelf: 'flex-start',
-    marginTop: 5,
-  },
-  logoutButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
   pageTitle: { fontSize: 20, fontWeight: 'bold', paddingHorizontal: 16, marginTop: 8, color: '#000' },
   subTitle: { fontSize: 14, paddingHorizontal: 16, color: '#555', marginBottom: 10 },
   friendSection: {

@@ -39,6 +39,7 @@ const AddFriendScreen = ({ navigation }) => {
       ]);
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Failed to add friend';
+      console.error('Add Friend Error:', error);
       Alert.alert('Error', errorMessage);
     }
   };
