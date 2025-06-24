@@ -12,9 +12,9 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
-app.use('/auth', authRoutes.router);
-app.use('/api', loginRoutes);
-app.use('/user', userRoutes);
+app.use('/auth', authRoutes.router); // Correct as is
+app.use('/api', loginRoutes); // Use directly
+app.use('/user', userRoutes.router); // Use .router since it exports { router }
 
 // Start server
 const PORT = process.env.PORT || 3000;

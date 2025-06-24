@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { navigationRef } from '../navigation/AppNavigator';
 
-const BASE_URL = 'http://192.168.243.160:3000'; // Replace with your machine’s IP address
+const BASE_URL = 'http://192.168.243.160:3000'; // Reverted to original IP
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -29,7 +29,6 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       await AsyncStorage.removeItem('jwtToken');
       console.log('Token expired, redirecting to login');
-      // Redirect to SignUpLogin screen
       navigationRef.current?.navigate('SignUpLogin');
     }
     return Promise.reject(error);
@@ -37,10 +36,20 @@ api.interceptors.response.use(
 );
 
 export const login = (phoneNumber, password) =>
-  api.post('/api/login', { phoneNumber, password });
+  api.post('/api/login', { phoneNumber, password }).then((response) => {
+    if (response.data.token) {
+      AsyncStorage.setItem('jwtToken', response.data.token);
+    }
+    return response;
+  });
 
 export const register = (phoneNumber, password) =>
-  api.post('/api/register', { phoneNumber, password });
+  api.post('/api/register', { phoneNumber, password }).then((response) => {
+    if (response.data.token) {
+      AsyncStorage.setItem('jwtToken', response.data.token);
+    }
+    return response;
+  });
 
 export const saveName = (name) =>
   api.post('/user/saveName', { name });
