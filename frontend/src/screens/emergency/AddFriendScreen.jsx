@@ -15,20 +15,32 @@ import {
 import CheckBox from '@react-native-community/checkbox';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { selectContactPhone } from 'react-native-select-contact';
+import { addFriend } from '../api/api';
 
 const AddFriendScreen = ({ navigation }) => {
   const [countryCode, setCountryCode] = useState('IN');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isSOS, setIsSOS] = useState(true);
 
-  const handleAddContact = () => {
+  const handleAddContact = async () => {
     if (phoneNumber.length !== 10) {
       Alert.alert('Invalid Number', 'Please enter a valid 10-digit phone number.');
       return;
     }
-    Alert.alert('Success', 'Contact saved successfully!', [
-      { text: 'OK', onPress: () => setPhoneNumber('') },
-    ]);
+
+    try {
+      await addFriend(phoneNumber, isSOS);
+      Alert.alert('Success', 'Contact saved successfully!', [
+        { text: 'OK', onPress: () => {
+          setPhoneNumber('');
+          setIsSOS(true);
+          navigation.goBack();
+        } },
+      ]);
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Failed to add friend';
+      Alert.alert('Error', errorMessage);
+    }
   };
 
   const requestContactsPermission = async () => {
