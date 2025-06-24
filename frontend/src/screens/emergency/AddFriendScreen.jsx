@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Image,
   SafeAreaView,
   PermissionsAndroid,
   Platform,
@@ -15,31 +14,58 @@ import {
 import CheckBox from '@react-native-community/checkbox';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { selectContactPhone } from 'react-native-select-contact';
-import { addFriend } from '../api/api';
+import { addFriend } from '../../api/api';
 
 const AddFriendScreen = ({ navigation }) => {
   const [countryCode, setCountryCode] = useState('IN');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isSOS, setIsSOS] = useState(true);
 
+  // Sanitize phone number input to allow only digits
+  const handlePhoneNumberChange = (text) => {
+    const sanitizedNumber = text.replace(/[^0-9]/g, '');
+    console.log('Sanitized Number:', sanitizedNumber, 'Length:', sanitizedNumber.length);
+    setPhoneNumber(sanitizedNumber);
+  };
+
   const handleAddContact = async () => {
-    if (phoneNumber.length !== 10) {
+    const trimmedPhoneNumber = phoneNumber.trim();
+    const fullPhoneNumber = `+91${trimmedPhoneNumber}`; // For logging purposes
+    console.log('handleAddContact - Full Phone Number:', fullPhoneNumber, 'Trimmed Phone Number:', trimmedPhoneNumber, 'isSOS:', isSOS, 'Length:', trimmedPhoneNumber.length);
+
+    if (trimmedPhoneNumber.length !== 10) {
       Alert.alert('Invalid Number', 'Please enter a valid 10-digit phone number.');
       return;
     }
 
     try {
-      await addFriend(phoneNumber, isSOS);
+      // Send only the 10-digit number to the server
+      console.log('Sending to addFriend API:', { phoneNumber: trimmedPhoneNumber, isSOS });
+      await addFriend(trimmedPhoneNumber, isSOS);
       Alert.alert('Success', 'Contact saved successfully!', [
-        { text: 'OK', onPress: () => {
-          setPhoneNumber('');
-          setIsSOS(true);
-          navigation.goBack();
-        } },
+        {
+          text: 'OK',
+          onPress: () => {
+            setPhoneNumber('');
+            setIsSOS(true);
+            navigation.goBack();
+          },
+        },
       ]);
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Failed to add friend';
-      console.error('Add Friend Error:', error);
+      console.error('Add Friend Error:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        url: error.config?.url,
+        baseURL: error.config?.baseURL,
+      });
+      let errorMessage = error.response?.data?.error || 'Failed to add friend';
+      if (error.response?.status === 404) {
+        errorMessage = 'Friend add endpoint not found. Please ensure the server is running and the /user/addFriend route is implemented.';
+      } else if (error.code === 'ERR_NETWORK') {
+        errorMessage = 'Network error. Please check if the server is reachable at http://192.168.243.160:3000.';
+      }
       Alert.alert('Error', errorMessage);
     }
   };
@@ -76,6 +102,7 @@ const AddFriendScreen = ({ navigation }) => {
 
     try {
       const selection = await selectContactPhone();
+      console.log('Selected Contact:', selection);
       if (selection) {
         let number = selection.selectedPhone.number.replace(/[^0-9]/g, '');
         if (number.startsWith('+91')) number = number.slice(3);
@@ -101,11 +128,6 @@ const AddFriendScreen = ({ navigation }) => {
           <Icon name="arrow-back-outline" size={24} color="#000" />
         </TouchableOpacity>
         <View style={styles.logoSection}>
-          <Image
-            source={require('../../assets/safeher_logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
           <Text style={styles.logoText}>SafeHer</Text>
         </View>
         <View style={styles.iconContainer}>
@@ -124,10 +146,12 @@ const AddFriendScreen = ({ navigation }) => {
                 style={styles.phoneInput}
                 placeholder="Enter phone number"
                 placeholderTextColor="#888"
-                keyboardType="phone-pad"
+                keyboardType="numeric"
                 value={phoneNumber}
-                onChangeText={setPhoneNumber}
+                onChangeText={handlePhoneNumberChange}
                 maxLength={10}
+                autoCorrect={false}
+                autoCapitalize="none"
               />
               <TouchableOpacity onPress={handleContactSelection} style={styles.contactIcon}>
                 <Icon name="person-add-outline" size={24} color="#FF69B4" />
@@ -190,11 +214,6 @@ const styles = StyleSheet.create({
   logoSection: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  logo: {
-    width: 40,
-    height: 40,
-    marginRight: 8,
   },
   logoText: {
     fontSize: 28,

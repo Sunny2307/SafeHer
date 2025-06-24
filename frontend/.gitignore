@@ -76,3 +76,4 @@ yarn-error.log
 
 src/google-services.json
 android/app/google-services.json
+functions/client_secret.json 

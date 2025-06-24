@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,15 +9,15 @@ import {
   Platform,
   Alert,
   Modal,
-  TextInput,
+  FlatList,
   Linking,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import { check, PERMISSIONS, request, RESULTS } from 'react-native-permissions';
-import { getUser } from '../api/api';
+import { getUser, getFriends } from '../api/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Header from '../components/Header';
 import BottomNav from '../components/BottomNav';
 
@@ -26,7 +26,7 @@ const HomeScreen = () => {
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [debugMessage, setDebugMessage] = useState('Initializing...');
   const [modalVisible, setModalVisible] = useState(false);
-  const [mobileNumber, setMobileNumber] = useState('');
+  const [friends, setFriends] = useState([]);
   const [userData, setUserData] = useState(null);
   const watchIdRef = useRef(null);
   const navigation = useNavigation();
@@ -106,17 +106,32 @@ const HomeScreen = () => {
       const response = await getUser();
       setUserData(response.data);
     } catch (error) {
+      console.error('Fetch User Error:', error);
       const errorMessage = error.response?.data?.error || 'Failed to fetch user data';
       Alert.alert('Error', errorMessage);
-      if (error.response?.status === 401) {
-        navigation.navigate('SignUpLogin');
-      }
+    }
+  };
+
+  const fetchFriends = async () => {
+    try {
+      const response = await getFriends();
+      console.log('Fetched Friends:', response.data);
+      setFriends(Array.isArray(response.data.friends) ? response.data.friends : []);
+    } catch (error) {
+      console.error('Fetch Friends Error:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to fetch friends';
+      Alert.alert('Error', errorMessage);
     }
   };
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem('jwtToken');
-    navigation.navigate('SignUpLogin');
+    try {
+      await AsyncStorage.removeItem('jwtToken');
+      navigation.navigate('SignUpLoginScreen');
+    } catch (error) {
+      console.error('Logout Error:', error);
+      Alert.alert('Error', 'Failed to log out. Please try again.');
+    }
   };
 
   useEffect(() => {
@@ -130,6 +145,12 @@ const HomeScreen = () => {
     };
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      fetchFriends();
+    }, [])
+  );
+
   const handleAddFriend = () => navigation.navigate('AddFriendScreen');
 
   const handleTrackMe = () => {
@@ -137,17 +158,28 @@ const HomeScreen = () => {
       Alert.alert('Location Unavailable', 'Please wait until your location is fetched.');
       return;
     }
+    if (friends.length === 0) {
+      Alert.alert('No Friends', 'Please add a friend to share your location with.', [
+        { text: 'OK', onPress: () => navigation.navigate('AddFriendScreen') },
+      ]);
+      return;
+    }
     setModalVisible(true);
   };
 
-  const handleShareLocation = async () => {
-    const mobileRegex = /^[6-9]\d{9}$/;
-    if (!mobileRegex.test(mobileNumber)) {
-      Alert.alert('Invalid Number', 'Please enter a valid 10-digit Indian mobile number.');
+  const handleShareLocation = async (friendPhoneNumber) => {
+    if (!friendPhoneNumber) {
+      Alert.alert('Error', 'Please select a friend to share your location with.');
       return;
     }
 
-    const formattedNumber = mobileNumber.startsWith('+') ? mobileNumber : `+91${mobileNumber}`;
+    const mobileRegex = /^[6-9]\d{9}$/;
+    if (!mobileRegex.test(friendPhoneNumber.replace('+91', ''))) {
+      Alert.alert('Invalid Number', 'The selected friend has an invalid 10-digit Indian mobile number.');
+      return;
+    }
+
+    const formattedNumber = friendPhoneNumber.startsWith('+91') ? friendPhoneNumber : `+91${friendPhoneNumber}`;
     const mapUrl = `https://www.google.com/maps?q=${location.latitude},${location.longitude}`;
     const message = `Here is my live location: ${mapUrl}`;
     const whatsappUrl = `https://wa.me/${formattedNumber}?text=${encodeURIComponent(message)}`;
@@ -155,27 +187,45 @@ const HomeScreen = () => {
     try {
       await Linking.openURL(whatsappUrl);
       setModalVisible(false);
-      setMobileNumber('');
     } catch (error) {
       console.error('WhatsApp Error:', error);
       Alert.alert('Error', 'Unable to open WhatsApp. Please make sure it is installed.');
     }
   };
 
+  const renderFriendItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.friendItem}
+      onPress={() => handleShareLocation(item.phoneNumber)}
+    >
+      <Text style={styles.friendText}>
+        {item.phoneNumber} {item.isSOS ? '(SOS)' : ''}
+      </Text>
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <Header />
-
       <Text style={styles.pageTitle}>Track me</Text>
       <Text style={styles.subTitle}>Share live location with your friends</Text>
-
       <View style={styles.friendSection}>
         <Text style={styles.addFriendText}>Add a friend to use SOS and Track me</Text>
         <TouchableOpacity style={styles.addButton} onPress={handleAddFriend}>
           <Text style={styles.addButtonText}>Add friends</Text>
         </TouchableOpacity>
       </View>
-
+      {friends.length > 0 ? (
+        <View style={styles.friendsListContainer}>
+          <Text style={styles.friendsListTitle}>Your Friends</Text>
+          <FlatList
+            data={friends}
+            renderItem={renderFriendItem}
+            keyExtractor={(item) => item.phoneNumber}
+            style={styles.friendsList}
+          />
+        </View>
+      ) : null}
       <View style={styles.mapContainer}>
         {location && !loadingLocation ? (
           <MapView
@@ -194,40 +244,33 @@ const HomeScreen = () => {
             <Text>{debugMessage}</Text>
           </View>
         )}
-
         <TouchableOpacity style={styles.trackButton} onPress={handleTrackMe}>
           <Text style={styles.trackButtonText}>Track me</Text>
         </TouchableOpacity>
       </View>
-
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Share Your Location</Text>
-            <Text style={styles.modalSubtitle}>Enter mobile number:</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="10-digit number"
-              keyboardType="phone-pad"
-              value={mobileNumber}
-              onChangeText={setMobileNumber}
-              maxLength={10}
+            <Text style={styles.modalSubtitle}>Select a friend to share your location with:</Text>
+            <FlatList
+              data={friends}
+              renderItem={renderFriendItem}
+              keyExtractor={(item) => item.phoneNumber}
+              style={styles.friendsList}
+              ListEmptyComponent={<Text>No friends available.</Text>}
             />
             <View style={styles.modalButtonContainer}>
-              <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => {
-                setModalVisible(false);
-                setMobileNumber('');
-              }}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setModalVisible(false)}
+              >
                 <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.shareButton]} onPress={handleShareLocation}>
-                <Text style={styles.modalButtonText}>Share</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-
       <BottomNav />
     </SafeAreaView>
   );
@@ -256,6 +299,29 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   addButtonText: { color: '#fff', fontWeight: '600' },
+  friendsListContainer: {
+    marginHorizontal: 16,
+    marginBottom: 10,
+  },
+  friendsListTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 5,
+  },
+  friendsList: {
+    maxHeight: 150,
+  },
+  friendItem: {
+    padding: 10,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 8,
+    marginBottom: 5,
+  },
+  friendText: {
+    fontSize: 14,
+    color: '#333',
+  },
   mapContainer: { flex: 1, position: 'relative' },
   map: { ...StyleSheet.absoluteFillObject },
   loadingMap: {
@@ -302,33 +368,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 15,
   },
-  input: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 20,
-    fontSize: 16,
-    color: '#000',
-  },
   modalButtonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     width: '100%',
+    marginTop: 10,
   },
   modalButton: {
-    flex: 1,
     padding: 10,
     borderRadius: 5,
     alignItems: 'center',
-    marginHorizontal: 5,
   },
   cancelButton: {
     backgroundColor: '#ccc',
-  },
-  shareButton: {
-    backgroundColor: '#FF69B4',
+    width: 100,
   },
   modalButtonText: {
     color: '#fff',
