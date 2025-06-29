@@ -16,6 +16,7 @@ import HelplineScreen from '../screens/emergency/HelplineScreen';
 import FakeCallScreen from '../screens/support/FakeCallScreen';
 import CallerDetailsScreen from '../screens/support/CallerDetailsScreen';
 import IncomingCallScreen from '../screens/support/IncomingCallScreen';
+import ShareVideoScreen from '../screens/support/ShareVideoScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -93,7 +94,13 @@ const AppNavigator = ({ initialRouteName }) => {
           component={IncomingCallScreen}
           options={{ headerShown: false }}
         />
+        <Stack.Screen 
+       name="ShareVideoScreen"
+       component={ShareVideoScreen}
+       options={{ headerShown: false }}
+      />
       </Stack.Navigator>
+      
     </NavigationContainer>
   );
 };

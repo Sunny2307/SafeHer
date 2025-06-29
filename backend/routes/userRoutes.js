@@ -94,10 +94,13 @@ router.post('/verifyPin', authenticate, async (req, res) => {
 
 // Add a friend
 router.post('/addFriend', authenticate, async (req, res) => {
-  const { phoneNumber, isSOS } = req.body;
+  const { phoneNumber, isSOS, name } = req.body;
 
   if (!phoneNumber || phoneNumber.length !== 10 || isNaN(phoneNumber)) {
     return res.status(400).json({ error: 'Invalid phone number. Must be a 10-digit number' });
+  }
+  if (!name || typeof name !== 'string' || name.trim().length === 0) {
+    return res.status(400).json({ error: 'Name is required and cannot be empty' });
   }
 
   try {
@@ -111,7 +114,7 @@ router.post('/addFriend', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Friend already added' });
     }
 
-    friends.push({ phoneNumber, isSOS: !!isSOS });
+    friends.push({ phoneNumber, isSOS: !!isSOS, name: name.trim() });
     await db.collection('users').doc(req.user.phoneNumber).set({ friends }, { merge: true });
 
     res.json({ message: 'Friend added successfully' });

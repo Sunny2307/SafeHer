@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Alert, Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
@@ -7,9 +7,11 @@ import { request, PERMISSIONS } from 'react-native-permissions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Header from '../../components/Header';
 import BottomNav from '../../components/BottomNav';
+import axios from 'axios';
 
 const RecordScreen = () => {
   const [isRecording, setIsRecording] = useState(false);
+  const [canStopRecording, setCanStopRecording] = useState(false);
   const [hasPermission, setHasPermission] = useState(false);
   const navigation = useNavigation();
   const cameraRef = useRef(null);
@@ -52,59 +54,86 @@ const RecordScreen = () => {
 
   const saveRecording = async (videoPath) => {
     try {
-      // Get existing recordings from AsyncStorage
       const existingRecordings = await AsyncStorage.getItem('recordings');
       const recordings = existingRecordings ? JSON.parse(existingRecordings) : [];
       
-      // Add new recording with timestamp
       recordings.push({
         uri: videoPath,
         timestamp: new Date().toISOString(),
       });
 
-      // Save updated recordings back to AsyncStorage
       await AsyncStorage.setItem('recordings', JSON.stringify(recordings));
     } catch (error) {
       console.error('Error saving recording to AsyncStorage:', error);
     }
   };
 
-  const handleRecordingToggle = async () => {
-    if (!cameraRef.current) return;
+  const uploadToDriveAndShare = async (videoPath) => {
+    try {
+      const formData = new FormData();
+      formData.append('video', {
+        uri: videoPath,
+        type: 'video/mp4',
+        name: `recording_${new Date().toISOString()}.mp4`,
+      });
 
-    if (isRecording) {
-      // Stop recording
-      try {
-        await cameraRef.current.stopRecording();
-        setIsRecording(false);
-      } catch (error) {
-        console.error('Error stopping recording:', error);
-        Alert.alert('Error', 'Failed to stop recording.');
+      console.log('Uploading video to server with path:', videoPath);
+      console.log('Video path exists:', !!videoPath); // Verify path
+
+      // Retry logic with exponential backoff
+      const maxRetries = 3;
+      let attempt = 1;
+      let response;
+
+      while (attempt <= maxRetries) {
+        try {
+          console.log(`Upload attempt ${attempt} of ${maxRetries}`);
+          response = await axios.post('http://192.168.240.134:3000/upload-video', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 120000, // 120 seconds
+          });
+          break; // Exit loop if successful
+        } catch (error) {
+          console.error(`Attempt ${attempt} failed:`, error.message, error.code, error.config.url, error.response ? error.response.status : 'No response');
+          if (error.code === 'ECONNABORTED' || error.message.includes('Network Error')) {
+            if (attempt === maxRetries) {
+              throw error; // Throw error after max retries
+            }
+            // Exponential backoff: 2s, 4s, 8s
+            const delay = Math.pow(2, attempt) * 2000;
+            console.log(`Retrying after ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            attempt++;
+          } else {
+            throw error; // Throw non-network errors immediately
+
+          }
+        }
       }
-    } else {
-      // Start recording
-      try {
-        await cameraRef.current.startRecording({
-          onRecordingFinished: async (video) => {
-            await saveRecording(video.path); // Save the recording
-            setIsRecording(false);
-          },
-          onRecordingError: (error) => {
-            console.error('Recording error:', error);
-            Alert.alert('Error', 'Failed to record video.');
-            setIsRecording(false);
-          },
-          videoCodec: 'h264',
-          fileType: 'mp4',
-        });
-        setIsRecording(true);
-      } catch (error) {
-        console.error('Error starting recording:', error);
-        Alert.alert('Error', 'Failed to start recording.');
+
+      if (response.data.success) {
+        const videoUrl = response.data.videoUrl;
+        console.log('Upload successful, navigating to ShareVideoScreen with URL:', videoUrl);
+        navigation.navigate('ShareVideoScreen', { videoUrl });
+      } else {
+ throw new Error('Upload failed');
       }
+    } catch (error) {
+      console.error('Error uploading to Drive:', error);
+      Alert.alert(
+        'Error',
+        'Failed to upload video. Please ensure the server is running at 192.168.240.134:3000, both devices are on the same Wi-Fi, and port 3000 is not blocked by a firewall.'
+      );
+    }
+  };
+
+  const handleRecordingToggle = async () => {
+    if (!cameraRef.current) {
+      Alert.alert('Error', 'Camera not initialized.');
+      return;
     }
 
-    // Animate button on press
+    // Animate button
     Animated.sequence([
       Animated.timing(scaleAnim, {
         toValue: 0.95,
@@ -117,6 +146,66 @@ const RecordScreen = () => {
         useNativeDriver: true,
       }),
     ]).start();
+
+    if (!isRecording) {
+      try {
+        console.log('Starting recording...');
+        setIsRecording(true);
+        setCanStopRecording(false);
+
+        await cameraRef.current.startRecording({
+          onRecordingFinished: async (video) => {
+            console.log('Recording finished - Video Object:', video);
+            setIsRecording(false);
+            setCanStopRecording(false);
+            if (video?.path) {
+              await saveRecording(video.path);
+              console.log('Recording saved to history with path:', video.path);
+              await uploadToDriveAndShare(video.path); // Upload to Drive and navigate to share
+            } else {
+              Alert.alert('Warning', 'Recording finished but no file was saved.');
+            }
+          },
+          onRecordingError: (error) => {
+            console.error('Recording error:', error);
+            Alert.alert('Error', 'Recording failed: ' + error.message); // Fixed syntax
+            setIsRecording(false);
+            setCanStopRecording(false);
+          },
+          videoCodec: 'h264',
+          fileType: 'mp4',
+          frameProcessor: Platform.OS === 'android' ? 'yuv' : undefined, // Force frame capture on Android
+        });
+
+        // Delay allowing stop for 3 seconds (as it worked)
+        setTimeout(() => {
+          console.log('Recording can now be stopped');
+          setCanStopRecording(true);
+        }, 3000);
+
+      } catch (error) {
+        console.error('Start recording error:', error);
+        Alert.alert('Error', 'Could not start recording: ' + error.message);
+        setIsRecording(false);
+        setCanStopRecording(false);
+      }
+
+    } else {
+      if (!canStopRecording) {
+        Alert.alert('Hold on', 'Please wait a few seconds before stopping the recording.');
+        return;
+      }
+
+      try {
+        console.log('Stopping recording...');
+        await cameraRef.current.stopRecording();
+      } catch (error) {
+        console.error('Stop recording error:', error);
+        Alert.alert('Error', 'Could not stop recording: ' + error.message);
+        setIsRecording(false);
+        setCanStopRecording(false);
+      }
+    }
   };
 
   const handleHistoryTap = () => {
@@ -159,10 +248,10 @@ const RecordScreen = () => {
       {/* Background Overlay for Aesthetic */}
       <View style={styles.backgroundOverlay} />
 
-      {/* Camera (Not Visible in UI) */}
+      {/* Camera with Visible Preview (Temporary) */}
       <Camera
         ref={cameraRef}
-        style={{ position: 'absolute', width: 0, height: 0 }} // Hidden from view
+        style={{ width: 200, height: 150, position: 'absolute', top: 20, left: 20 }} // Visible preview
         device={device}
         isActive={true}
         video={true}

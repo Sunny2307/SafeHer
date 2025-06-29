@@ -19,6 +19,7 @@ import { addFriend } from '../../api/api';
 const AddFriendScreen = ({ navigation }) => {
   const [countryCode, setCountryCode] = useState('IN');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [friendName, setFriendName] = useState('');
   const [isSOS, setIsSOS] = useState(true);
 
   // Sanitize phone number input to allow only digits
@@ -28,25 +29,39 @@ const AddFriendScreen = ({ navigation }) => {
     setPhoneNumber(sanitizedNumber);
   };
 
+  // Sanitize friend name to allow only letters, spaces, and hyphens
+  const handleFriendNameChange = (text) => {
+    const sanitizedName = text.replace(/[^a-zA-Z\s-]/g, '');
+    console.log('Sanitized Name:', sanitizedName);
+    setFriendName(sanitizedName);
+  };
+
   const handleAddContact = async () => {
     const trimmedPhoneNumber = phoneNumber.trim();
-    const fullPhoneNumber = `+91${trimmedPhoneNumber}`; // For logging purposes
+    const trimmedFriendName = friendName.trim();
+    const fullPhoneNumber = `+91${trimmedPhoneNumber}`;
     console.log('handleAddContact - Full Phone Number:', fullPhoneNumber, 'Trimmed Phone Number:', trimmedPhoneNumber, 'isSOS:', isSOS, 'Length:', trimmedPhoneNumber.length);
 
     if (trimmedPhoneNumber.length !== 10) {
       Alert.alert('Invalid Number', 'Please enter a valid 10-digit phone number.');
       return;
     }
+    if (!trimmedFriendName || trimmedFriendName.length < 2) {
+      Alert.alert('Invalid Name', 'Please enter a valid friend name (at least 2 characters, letters, spaces, or hyphens only).');
+      return;
+    }
+
+    const payload = { phoneNumber: trimmedPhoneNumber, isSOS, name: trimmedFriendName };
+    console.log('Sending to addFriend API:', payload);
 
     try {
-      // Send only the 10-digit number to the server
-      console.log('Sending to addFriend API:', { phoneNumber: trimmedPhoneNumber, isSOS });
-      await addFriend(trimmedPhoneNumber, isSOS);
-      Alert.alert('Success', 'Contact saved successfully!', [
+      await addFriend(trimmedPhoneNumber, isSOS, trimmedFriendName);
+      Alert.alert('Success', 'Friend added successfully!', [
         {
           text: 'OK',
           onPress: () => {
             setPhoneNumber('');
+            setFriendName('');
             setIsSOS(true);
             navigation.goBack();
           },
@@ -59,12 +74,17 @@ const AddFriendScreen = ({ navigation }) => {
         data: error.response?.data,
         url: error.config?.url,
         baseURL: error.config?.baseURL,
+        requestData: payload,
       });
-      let errorMessage = error.response?.data?.error || 'Failed to add friend';
+      let errorMessage = error.response?.data?.error || 'Failed to add friend. Please try again.';
       if (error.response?.status === 404) {
         errorMessage = 'Friend add endpoint not found. Please ensure the server is running and the /user/addFriend route is implemented.';
       } else if (error.code === 'ERR_NETWORK') {
-        errorMessage = 'Network error. Please check if the server is reachable at http://192.168.243.160:3000.';
+        errorMessage = 'Network error. Please check your internet connection and ensure the server is reachable at http://192.168.240.134:3000.';
+      } else if (error.response?.status === 400) {
+        errorMessage = error.response?.data?.error || 'Invalid request. Please check the name and phone number.';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error. Please try again later or contact support.';
       }
       Alert.alert('Error', errorMessage);
     }
@@ -77,7 +97,7 @@ const AddFriendScreen = ({ navigation }) => {
           PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
           {
             title: 'Contacts Permission',
-            message: 'SafeHer needs access to your contacts to select an SOS contact.',
+            message: 'SafeHer needs access to your contacts to select a friend.',
             buttonNeutral: 'Ask Me Later',
             buttonNegative: 'Cancel',
             buttonPositive: 'OK',
@@ -96,7 +116,7 @@ const AddFriendScreen = ({ navigation }) => {
   const handleContactSelection = async () => {
     const hasPermission = await requestContactsPermission();
     if (!hasPermission) {
-      Alert.alert('Permission Denied', 'Contacts permission is required.');
+      Alert.alert('Permission Denied', 'Contacts permission is required to select a friend.');
       return;
     }
 
@@ -108,7 +128,9 @@ const AddFriendScreen = ({ navigation }) => {
         if (number.startsWith('+91')) number = number.slice(3);
         if (number.length === 10) {
           setPhoneNumber(number);
-          Alert.alert('Contact Saved', `${selection.contact.name || 'Contact'} has been selected and saved.`);
+          const contactName = selection.contact.name || '';
+          setFriendName(contactName.replace(/[^a-zA-Z\s-]/g, ''));
+          Alert.alert('Contact Selected', `${contactName || 'Contact'} has been selected.`);
         } else {
           Alert.alert('Invalid Number', 'The selected number is not a valid 10-digit Indian number.');
         }
@@ -159,33 +181,47 @@ const AddFriendScreen = ({ navigation }) => {
             </View>
           </View>
 
+          <View style={styles.inputRow}>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.nameInput}
+                placeholder="Enter friend name"
+                placeholderTextColor="#888"
+                value={friendName}
+                onChangeText={handleFriendNameChange}
+                autoCorrect={false}
+                autoCapitalize="words"
+              />
+            </View>
+          </View>
+
           <View style={styles.checkboxContainer}>
             <CheckBox
               value={isSOS}
               onValueChange={setIsSOS}
               tintColors={{ true: '#FF69B4', false: '#ccc' }}
             />
-            <Text style={styles.checkboxLabel}>Make this person my SOS contact</Text>
+            <Text style={styles.checkboxLabel}>Set as SOS contact</Text>
           </View>
 
           <View style={styles.infoBox}>
-            <Text style={styles.infoTitle}>👥 Who is a Friend?</Text>
+            <Text style={styles.infoTitle}>👥 What is a Friend?</Text>
             <Text style={styles.infoText}>
-              Friend is someone who receives your live location when you use the Track Me feature.
+              A friend is someone who receives your live location when you use the Track Me feature.
             </Text>
 
-            <Text style={styles.infoTitle}>🆘 Who is an SOS contact?</Text>
+            <Text style={styles.infoTitle}>🆘 What is an SOS Contact?</Text>
             <Text style={styles.infoText}>
               An SOS contact receives your SOS alerts during an emergency.
             </Text>
           </View>
 
           <TouchableOpacity
-            style={[styles.button, phoneNumber.length !== 10 && { opacity: 0.5 }]}
-            disabled={phoneNumber.length !== 10}
+            style={[styles.button, (phoneNumber?.length !== 10 || !friendName?.trim() || friendName.trim().length < 2) && { opacity: 0.5 }]}
+            disabled={phoneNumber?.length !== 10 || !friendName?.trim() || friendName.trim().length < 2}
             onPress={handleAddContact}
           >
-            <Text style={styles.buttonText}>Add SOS Contact</Text>
+            <Text style={styles.buttonText}>Add Friend</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -269,6 +305,12 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   phoneInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+    paddingVertical: 0,
+  },
+  nameInput: {
     flex: 1,
     fontSize: 16,
     color: '#333',

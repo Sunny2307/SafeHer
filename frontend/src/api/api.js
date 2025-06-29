@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { navigationRef } from '../navigation/AppNavigator';
 
-const BASE_URL = 'http://192.168.243.160:3000'; // Reverted to original IP
+const BASE_URL = 'http://192.168.240.134:3000';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -72,8 +72,8 @@ export const sendOTP = (phoneNumber) =>
 export const verifyOTP = (sessionId, otp) =>
   api.post('/api/verify-otp', { sessionId, otp });
 
-export const addFriend = (phoneNumber, isSOS) =>
-  api.post('/user/addFriend', { phoneNumber, isSOS });
+export const addFriend = (phoneNumber, isSOS, friendName) =>
+  api.post('/user/addFriend', { phoneNumber, isSOS, name: friendName });
 
 export const getFriends = () =>
   api.get('/user/getFriends');

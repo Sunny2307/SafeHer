@@ -122,6 +122,7 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
     implementation 'com.google.firebase:firebase-auth'
+    // implementation 'com.github.JohnsenZhou:react-native-compressor:1.7.2'
 
 
     if (hermesEnabled.toBoolean()) {
