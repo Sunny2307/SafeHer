@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { navigationRef } from '../navigation/AppNavigator';
 
-const BASE_URL = 'http://192.168.240.134:3000';
+const BASE_URL = 'http://192.168.243.160:3000';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -64,7 +64,7 @@ export const verifyPin = (pin) =>
   api.post('/user/verifyPin', { pin });
 
 export const checkUser = (phoneNumber) =>
-  api.post('/api/checkUser', { phoneNumber });
+  api.post('/api/checkUser', { phoneNumber});
 
 export const sendOTP = (phoneNumber) =>
   api.post('/api/send-otp', { phoneNumber });

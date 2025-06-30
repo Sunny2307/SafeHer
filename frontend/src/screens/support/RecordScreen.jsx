@@ -8,6 +8,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Header from '../../components/Header';
 import BottomNav from '../../components/BottomNav';
 import axios from 'axios';
+import { Video } from 'react-native-compressor';
+import RNFS from 'react-native-fs';
 
 const RecordScreen = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -70,17 +72,32 @@ const RecordScreen = () => {
 
   const uploadToDriveAndShare = async (videoPath) => {
     try {
+      // Compress the video
+      console.log('Compressing video:', videoPath);
+      const compressedVideoPath = await Video.compress(
+        videoPath,
+        {
+          compressionMethod: 'auto',
+          maxSize: 1280,
+          bitrate: 2000000,
+        },
+        (progress) => {
+          console.log('Compression progress:', progress);
+        }
+      );
+      console.log('Compressed video path:', compressedVideoPath);
+
+      // Prepare FormData with compressed video
       const formData = new FormData();
       formData.append('video', {
-        uri: videoPath,
+        uri: compressedVideoPath,
         type: 'video/mp4',
-        name: `recording_${new Date().toISOString()}.mp4`,
+        name: `compressed_recording_${new Date().toISOString()}.mp4`,
       });
 
-      console.log('Uploading video to server with path:', videoPath);
-      console.log('Video path exists:', !!videoPath); // Verify path
+      console.log('Uploading compressed video to server with path:', compressedVideoPath);
 
-      // Retry logic with exponential backoff
+      // Upload with retry logic
       const maxRetries = 3;
       let attempt = 1;
       let response;
@@ -88,25 +105,23 @@ const RecordScreen = () => {
       while (attempt <= maxRetries) {
         try {
           console.log(`Upload attempt ${attempt} of ${maxRetries}`);
-          response = await axios.post('http://192.168.240.134:3000/upload-video', formData, {
+          response = await axios.post('http://192.168.243.160:3000/upload-video', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
-            timeout: 120000, // 120 seconds
+            timeout: 120000,
           });
-          break; // Exit loop if successful
+          break;
         } catch (error) {
-          console.error(`Attempt ${attempt} failed:`, error.message, error.code, error.config.url, error.response ? error.response.status : 'No response');
+          console.error(`Attempt ${attempt} failed:`, error.message, error.code, error.config?.url, error.response ? error.response.status : 'No response');
           if (error.code === 'ECONNABORTED' || error.message.includes('Network Error')) {
             if (attempt === maxRetries) {
-              throw error; // Throw error after max retries
+              throw error;
             }
-            // Exponential backoff: 2s, 4s, 8s
             const delay = Math.pow(2, attempt) * 2000;
             console.log(`Retrying after ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
             attempt++;
           } else {
-            throw error; // Throw non-network errors immediately
-
+            throw error;
           }
         }
       }
@@ -115,14 +130,17 @@ const RecordScreen = () => {
         const videoUrl = response.data.videoUrl;
         console.log('Upload successful, navigating to ShareVideoScreen with URL:', videoUrl);
         navigation.navigate('ShareVideoScreen', { videoUrl });
+
+        // Clean up compressed video file
+        await RNFS.unlink(compressedVideoPath).catch(err => console.log('Failed to delete compressed file:', err));
       } else {
- throw new Error('Upload failed');
+        throw new Error('Upload failed');
       }
     } catch (error) {
-      console.error('Error uploading to Drive:', error);
+      console.error('Error during compression or upload:', error);
       Alert.alert(
         'Error',
-        'Failed to upload video. Please ensure the server is running at 192.168.240.134:3000, both devices are on the same Wi-Fi, and port 3000 is not blocked by a firewall.'
+        'Failed to compress or upload video. Please ensure the server is running at 192.168.243.160:3000, both devices are on the same Wi-Fi, and port 3000 is not blocked by a firewall.'
       );
     }
   };
@@ -133,7 +151,6 @@ const RecordScreen = () => {
       return;
     }
 
-    // Animate button
     Animated.sequence([
       Animated.timing(scaleAnim, {
         toValue: 0.95,
@@ -161,35 +178,32 @@ const RecordScreen = () => {
             if (video?.path) {
               await saveRecording(video.path);
               console.log('Recording saved to history with path:', video.path);
-              await uploadToDriveAndShare(video.path); // Upload to Drive and navigate to share
+              await uploadToDriveAndShare(video.path);
             } else {
               Alert.alert('Warning', 'Recording finished but no file was saved.');
             }
           },
           onRecordingError: (error) => {
             console.error('Recording error:', error);
-            Alert.alert('Error', 'Recording failed: ' + error.message); // Fixed syntax
+            Alert.alert('Error', 'Recording failed: ' + error.message);
             setIsRecording(false);
             setCanStopRecording(false);
           },
           videoCodec: 'h264',
           fileType: 'mp4',
-          frameProcessor: Platform.OS === 'android' ? 'yuv' : undefined, // Force frame capture on Android
+          frameProcessor: Platform.OS === 'android' ? 'yuv' : undefined,
         });
 
-        // Delay allowing stop for 3 seconds (as it worked)
         setTimeout(() => {
           console.log('Recording can now be stopped');
           setCanStopRecording(true);
         }, 3000);
-
       } catch (error) {
         console.error('Start recording error:', error);
         Alert.alert('Error', 'Could not start recording: ' + error.message);
         setIsRecording(false);
         setCanStopRecording(false);
       }
-
     } else {
       if (!canStopRecording) {
         Alert.alert('Hold on', 'Please wait a few seconds before stopping the recording.');
@@ -209,10 +223,7 @@ const RecordScreen = () => {
   };
 
   const handleHistoryTap = () => {
-    // Navigate to history screen
     navigation.navigate('RecordingHistoryScreen');
-
-    // Animate history section on press
     Animated.sequence([
       Animated.timing(historyScaleAnim, {
         toValue: 0.98,
@@ -245,26 +256,18 @@ const RecordScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Background Overlay for Aesthetic */}
       <View style={styles.backgroundOverlay} />
-
-      {/* Camera with Visible Preview (Temporary) */}
       <Camera
         ref={cameraRef}
-        style={{ width: 200, height: 150, position: 'absolute', top: 20, left: 20 }} // Visible preview
+        style={{ width: 200, height: 150, position: 'absolute', top: 20, left: 20 }}
         device={device}
         isActive={true}
         video={true}
         audio={true}
-        location={false} // Ensure no location metadata for anonymity
+        location={false}
       />
-
-      {/* Header */}
       <Header />
-
-      {/* Main Content */}
       <View style={styles.mainContent}>
-        {/* History Section */}
         <Animated.View style={{ transform: [{ scale: historyScaleAnim }] }}>
           <TouchableOpacity style={styles.historySection} onPress={handleHistoryTap}>
             <Icon name="mic-circle" size={24} color="#FF69B4" style={styles.historyIcon} />
@@ -272,11 +275,7 @@ const RecordScreen = () => {
             <Icon name="chevron-forward" size={20} color="#555" />
           </TouchableOpacity>
         </Animated.View>
-
-        {/* Spacer to push the recording button to the bottom */}
         <View style={styles.spacer} />
-
-        {/* Recording Button Section */}
         <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
           <TouchableOpacity style={styles.recordButtonContainer} onPress={handleRecordingToggle}>
             <View
@@ -301,8 +300,6 @@ const RecordScreen = () => {
           </TouchableOpacity>
         </Animated.View>
       </View>
-
-      {/* Bottom Navigation */}
       <BottomNav />
     </SafeAreaView>
   );

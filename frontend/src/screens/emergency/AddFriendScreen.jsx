@@ -80,7 +80,7 @@ const AddFriendScreen = ({ navigation }) => {
       if (error.response?.status === 404) {
         errorMessage = 'Friend add endpoint not found. Please ensure the server is running and the /user/addFriend route is implemented.';
       } else if (error.code === 'ERR_NETWORK') {
-        errorMessage = 'Network error. Please check your internet connection and ensure the server is reachable at http://192.168.240.134:3000.';
+        errorMessage = 'Network error. Please check your internet connection and ensure the server is reachable at http://192.168.243.160:3000.';
       } else if (error.response?.status === 400) {
         errorMessage = error.response?.data?.error || 'Invalid request. Please check the name and phone number.';
       } else if (error.response?.status === 500) {
