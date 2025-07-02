@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Animated, Alert, Platform, Modal } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
@@ -15,15 +15,17 @@ const RecordScreen = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [canStopRecording, setCanStopRecording] = useState(false);
   const [hasPermission, setHasPermission] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState('');
   const navigation = useNavigation();
   const cameraRef = useRef(null);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const historyScaleAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
 
-  // Use back camera
   const device = useCameraDevice('back');
 
-  // Request camera and microphone permissions
   useEffect(() => {
     const requestPermissions = async () => {
       try {
@@ -54,6 +56,30 @@ const RecordScreen = () => {
     requestPermissions();
   }, []);
 
+  useEffect(() => {
+    if (isProcessing) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+      Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        })
+      ).start();
+    } else {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+      rotateAnim.setValue(0);
+    }
+  }, [isProcessing]);
+
   const saveRecording = async (videoPath) => {
     try {
       const existingRecordings = await AsyncStorage.getItem('recordings');
@@ -72,7 +98,8 @@ const RecordScreen = () => {
 
   const uploadToDriveAndShare = async (videoPath) => {
     try {
-      // Compress the video
+      setIsProcessing(true);
+      setProcessingStatus('Compressing video...');
       console.log('Compressing video:', videoPath);
       const compressedVideoPath = await Video.compress(
         videoPath,
@@ -80,14 +107,16 @@ const RecordScreen = () => {
           compressionMethod: 'auto',
           maxSize: 1280,
           bitrate: 2000000,
+          outputFormat: 'mp4',
+          codec: 'h264',
         },
         (progress) => {
           console.log('Compression progress:', progress);
         }
       );
       console.log('Compressed video path:', compressedVideoPath);
+      setProcessingStatus('Compression complete. Uploading to server...');
 
-      // Prepare FormData with compressed video
       const formData = new FormData();
       formData.append('video', {
         uri: compressedVideoPath,
@@ -97,7 +126,6 @@ const RecordScreen = () => {
 
       console.log('Uploading compressed video to server with path:', compressedVideoPath);
 
-      // Upload with retry logic
       const maxRetries = 3;
       let attempt = 1;
       let response;
@@ -105,7 +133,7 @@ const RecordScreen = () => {
       while (attempt <= maxRetries) {
         try {
           console.log(`Upload attempt ${attempt} of ${maxRetries}`);
-          response = await axios.post('http://192.168.243.160:3000/upload-video', formData, {
+          response = await axios.post('http://192.168.55.180:3000/upload-video', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
             timeout: 120000,
           });
@@ -128,20 +156,37 @@ const RecordScreen = () => {
 
       if (response.data.success) {
         const videoUrl = response.data.videoUrl;
-        console.log('Upload successful, navigating to ShareVideoScreen with URL:', videoUrl);
+        console.log('Server response:', response.data);
+        console.log('Video URL to be shared:', videoUrl);
+        if (!videoUrl || !videoUrl.startsWith('http')) {
+          throw new Error('Invalid video URL returned from server');
+        }
+        try {
+          const statusResponse = await axios.get('http://192.168.55.180:3000/video-status', {
+            params: { videoUrl },
+          });
+          if (statusResponse.data.status !== 'ready') {
+            throw new Error('Video is still processing on the server');
+          }
+        } catch (error) {
+          console.warn('Video status check failed:', error.message);
+        }
+        setProcessingStatus('Upload complete!');
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Brief delay to show completion
         navigation.navigate('ShareVideoScreen', { videoUrl });
-
-        // Clean up compressed video file
         await RNFS.unlink(compressedVideoPath).catch(err => console.log('Failed to delete compressed file:', err));
       } else {
-        throw new Error('Upload failed');
+        throw new Error('Upload failed: ' + (response.data.message || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error during compression or upload:', error);
       Alert.alert(
         'Error',
-        'Failed to compress or upload video. Please ensure the server is running at 192.168.243.160:3000, both devices are on the same Wi-Fi, and port 3000 is not blocked by a firewall.'
+        'Failed to compress or upload video. Please ensure the server is running at 192.168.55.180:3000, both devices are on the same Wi-Fi, and port 3000 is not blocked by a firewall.'
       );
+    } finally {
+      setIsProcessing(false);
+      setProcessingStatus('');
     }
   };
 
@@ -259,7 +304,7 @@ const RecordScreen = () => {
       <View style={styles.backgroundOverlay} />
       <Camera
         ref={cameraRef}
-        style={{ width: 200, height: 150, position: 'absolute', top: 20, left: 20 }}
+        // style={{ width: 200, height: 150, position: 'absolute', top: 20, left: 20 }}
         device={device}
         isActive={true}
         video={true}
@@ -275,9 +320,16 @@ const RecordScreen = () => {
             <Icon name="chevron-forward" size={20} color="#555" />
           </TouchableOpacity>
         </Animated.View>
+        <Text style={styles.welcomeText}>
+          Record a video and share it with friends automatically!
+        </Text>
         <View style={styles.spacer} />
         <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-          <TouchableOpacity style={styles.recordButtonContainer} onPress={handleRecordingToggle}>
+          <TouchableOpacity
+            style={styles.recordButtonContainer}
+            onPress={handleRecordingToggle}
+            disabled={isProcessing}
+          >
             <View
               style={[
                 styles.recordButton,
@@ -300,6 +352,29 @@ const RecordScreen = () => {
           </TouchableOpacity>
         </Animated.View>
       </View>
+      <Modal
+        visible={isProcessing}
+        transparent={true}
+        animationType="none"
+      >
+        <Animated.View style={[styles.loadingOverlay, { opacity: fadeAnim }]}>
+          <Animated.View
+            style={{
+              transform: [
+                {
+                  rotate: rotateAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0deg', '360deg'],
+                  }),
+                },
+              ],
+            }}
+          >
+            <Icon name="refresh-circle" size={50} color="#FF69B4" />
+          </Animated.View>
+          <Text style={styles.loadingText}>{processingStatus}</Text>
+        </Animated.View>
+      </Modal>
       <BottomNav />
     </SafeAreaView>
   );
@@ -343,6 +418,21 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#333',
   },
+  welcomeText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FF69B4',
+    textAlign: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   spacer: {
     flex: 1,
   },
@@ -371,6 +461,23 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     letterSpacing: 0.5,
+  },
+  loadingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    backgroundColor: 'rgba(255, 105, 180, 0.2)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    textAlign: 'center',
   },
 });
 

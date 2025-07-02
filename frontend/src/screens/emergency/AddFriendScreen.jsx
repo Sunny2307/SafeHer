@@ -22,17 +22,13 @@ const AddFriendScreen = ({ navigation }) => {
   const [friendName, setFriendName] = useState('');
   const [isSOS, setIsSOS] = useState(true);
 
-  // Sanitize phone number input to allow only digits
   const handlePhoneNumberChange = (text) => {
     const sanitizedNumber = text.replace(/[^0-9]/g, '');
-    console.log('Sanitized Number:', sanitizedNumber, 'Length:', sanitizedNumber.length);
     setPhoneNumber(sanitizedNumber);
   };
 
-  // Sanitize friend name to allow only letters, spaces, and hyphens
   const handleFriendNameChange = (text) => {
     const sanitizedName = text.replace(/[^a-zA-Z\s-]/g, '');
-    console.log('Sanitized Name:', sanitizedName);
     setFriendName(sanitizedName);
   };
 
@@ -40,20 +36,18 @@ const AddFriendScreen = ({ navigation }) => {
     const trimmedPhoneNumber = phoneNumber.trim();
     const trimmedFriendName = friendName.trim();
     const fullPhoneNumber = `+91${trimmedPhoneNumber}`;
-    console.log('handleAddContact - Full Phone Number:', fullPhoneNumber, 'Trimmed Phone Number:', trimmedPhoneNumber, 'isSOS:', isSOS, 'Length:', trimmedPhoneNumber.length);
 
     if (trimmedPhoneNumber.length !== 10) {
       Alert.alert('Invalid Number', 'Please enter a valid 10-digit phone number.');
       return;
     }
+
     if (!trimmedFriendName || trimmedFriendName.length < 2) {
       Alert.alert('Invalid Name', 'Please enter a valid friend name (at least 2 characters, letters, spaces, or hyphens only).');
       return;
     }
 
     const payload = { phoneNumber: trimmedPhoneNumber, isSOS, name: trimmedFriendName };
-    console.log('Sending to addFriend API:', payload);
-
     try {
       await addFriend(trimmedPhoneNumber, isSOS, trimmedFriendName);
       Alert.alert('Success', 'Friend added successfully!', [
@@ -80,7 +74,7 @@ const AddFriendScreen = ({ navigation }) => {
       if (error.response?.status === 404) {
         errorMessage = 'Friend add endpoint not found. Please ensure the server is running and the /user/addFriend route is implemented.';
       } else if (error.code === 'ERR_NETWORK') {
-        errorMessage = 'Network error. Please check your internet connection and ensure the server is reachable at http://192.168.243.160:3000.';
+        errorMessage = 'Network error. Please check your internet connection and ensure the server is reachable.';
       } else if (error.response?.status === 400) {
         errorMessage = error.response?.data?.error || 'Invalid request. Please check the name and phone number.';
       } else if (error.response?.status === 500) {
@@ -122,7 +116,6 @@ const AddFriendScreen = ({ navigation }) => {
 
     try {
       const selection = await selectContactPhone();
-      console.log('Selected Contact:', selection);
       if (selection) {
         let number = selection.selectedPhone.number.replace(/[^0-9]/g, '');
         if (number.startsWith('+91')) number = number.slice(3);
@@ -217,8 +210,11 @@ const AddFriendScreen = ({ navigation }) => {
           </View>
 
           <TouchableOpacity
-            style={[styles.button, (phoneNumber?.length !== 10 || !friendName?.trim() || friendName.trim().length < 2) && { opacity: 0.5 }]}
-            disabled={phoneNumber?.length !== 10 || !friendName?.trim() || friendName.trim().length < 2}
+            style={[
+              styles.button,
+              (phoneNumber?.length !== 10 || friendName.trim().length < 2) && { opacity: 0.5 },
+            ]}
+            disabled={phoneNumber?.length !== 10 || friendName.trim().length < 2}
             onPress={handleAddContact}
           >
             <Text style={styles.buttonText}>Add Friend</Text>
@@ -359,7 +355,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   button: {
-    width: '100%',
+    width: '100',
     backgroundColor: '#FF69B4',
     paddingVertical: 14,
     borderRadius: 30,

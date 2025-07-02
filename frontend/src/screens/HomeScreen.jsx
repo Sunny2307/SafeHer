@@ -199,7 +199,7 @@ const HomeScreen = () => {
       onPress={() => handleShareLocation(item.phoneNumber)}
     >
       <Text style={styles.friendText}>
-        {item.phoneNumber} {item.isSOS ? '(SOS)' : ''}
+        {item.name || item.phoneNumber} {item.isSOS ? '(SOS)' : ''}
       </Text>
     </TouchableOpacity>
   );
